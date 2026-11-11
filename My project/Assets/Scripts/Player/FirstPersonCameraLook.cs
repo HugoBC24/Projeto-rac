@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace ProjectRac.Player
 {
@@ -63,11 +64,14 @@ namespace ProjectRac.Player
 
         private void HandleCursorToggle()
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
+            var keyboard = Keyboard.current;
+            var mouse = Mouse.current;
+
+            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             {
                 UnlockCursor();
             }
-            else if (Input.GetMouseButtonDown(0) && Cursor.lockState != CursorLockMode.Locked)
+            else if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked)
             {
                 LockCursor();
             }

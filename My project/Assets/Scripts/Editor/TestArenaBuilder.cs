@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using ProjectRac.Player;
@@ -62,7 +63,7 @@ namespace ProjectRac.Editor
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Beta", new Vector3(-10f, 1f, 8f));
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Gamma", new Vector3(10f, 4f, 18f));
 
-            // 6. Setup Player
+            // 6. Setup Player with New Input System
             SetupPlayer();
 
             // Mark Scene Dirty and Save
@@ -70,7 +71,7 @@ namespace ProjectRac.Editor
             EditorSceneManager.SaveScene(activeScene);
 
             Undo.CollapseUndoOperations(undoGroup);
-            Debug.Log("[TestArenaBuilder] Arena de Teste FPAA gerada com sucesso! Pressione PLAY no Unity para testar.");
+            Debug.Log("[TestArenaBuilder] Arena de Teste FPAA configurada com Unity New Input System! Pressione PLAY para testar.");
         }
 
         private static void CreateWall(Transform parent, string name, Vector3 pos, Vector3 scale)
@@ -100,7 +101,7 @@ namespace ProjectRac.Editor
 
         private static void SetupPlayer()
         {
-            // Disable or remove existing standalone Main Camera if present
+            // Remove existing standalone cameras
             var existingCams = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include);
             foreach (var cam in existingCams)
             {
@@ -110,7 +111,7 @@ namespace ProjectRac.Editor
                 }
             }
 
-            // Check if player exists
+            // Clean existing Player
             GameObject player = GameObject.Find("Player");
             if (player != null)
             {
@@ -121,7 +122,7 @@ namespace ProjectRac.Editor
             Undo.RegisterCreatedObjectUndo(player, "Create Player");
             player.transform.position = new Vector3(0f, 0.1f, 0f);
 
-            // Add Components
+            // Add CharacterController
             var charController = player.AddComponent<CharacterController>();
             charController.height = 2.0f;
             charController.radius = 0.45f;
@@ -129,9 +130,20 @@ namespace ProjectRac.Editor
             charController.stepOffset = 0.4f;
             charController.slopeLimit = 45f;
 
+            // Add Input and Controllers
             var inputHandler = player.AddComponent<PlayerInputHandler>();
-            var fpsController = player.AddComponent<FirstPersonController>();
-            var interaction = player.AddComponent<PlayerInteraction>();
+
+            var actionAsset = AssetDatabase.LoadAssetAtPath<InputActionAsset>("Assets/Settings/InputSystem_Actions.inputactions");
+            if (actionAsset != null)
+            {
+                var playerInput = player.AddComponent<PlayerInput>();
+                playerInput.actions = actionAsset;
+                playerInput.defaultActionMap = "Player";
+                inputHandler.SetActionAsset(actionAsset);
+            }
+
+            player.AddComponent<FirstPersonController>();
+            player.AddComponent<PlayerInteraction>();
 
             // Setup Camera
             GameObject cameraObj = new GameObject("FirstPersonCamera");

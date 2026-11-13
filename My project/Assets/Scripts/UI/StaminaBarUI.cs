@@ -8,36 +8,49 @@ namespace ProjectRac.UI
     {
         [Header("References")]
         [SerializeField] private PlayerStamina playerStamina;
-        [SerializeField] private Slider optionalSlider;
+        [SerializeField] private Slider staminaSlider;
+        [SerializeField] private Image fillImage;
+        [SerializeField] private Text valueText;
 
-        [Header("Position & Dimensions (OnGUI)")]
-        [SerializeField] private float barX = 30f;
-        [SerializeField] private float barYOffsetFromBottom = 60f;
-        [SerializeField] private float barWidth = 220f;
-        [SerializeField] private float barHeight = 18f;
-
-        [Header("Colors")]
+        [Header("Color Palette")]
         [SerializeField] private Color normalColor = new Color(0.2f, 0.85f, 0.4f, 0.95f);
         [SerializeField] private Color warningColor = new Color(0.95f, 0.75f, 0.15f, 0.95f);
         [SerializeField] private Color exhaustedColor = new Color(0.95f, 0.25f, 0.2f, 0.95f);
         [SerializeField] private Color backgroundColor = new Color(0.1f, 0.1f, 0.1f, 0.75f);
         [SerializeField] private Color borderColor = new Color(0.8f, 0.8f, 0.8f, 0.8f);
 
+        [Header("OnGUI Fallback (Active only if uGUI is not assigned)")]
+        [SerializeField] private float barX = 30f;
+        [SerializeField] private float barYOffsetFromBottom = 60f;
+        [SerializeField] private float barWidth = 220f;
+        [SerializeField] private float barHeight = 18f;
+
         private Texture2D _whiteTexture;
         private GUIStyle _labelStyle;
+        private bool _isExhausted;
 
         private void Awake()
         {
-            if (playerStamina == null)
-            {
-                playerStamina = GetComponentInParent<PlayerStamina>();
-                if (playerStamina == null)
-                {
-                    playerStamina = FindAnyObjectByType<PlayerStamina>();
-                }
-            }
+            ResolveReferences();
+        }
 
-            CreateTexture();
+        private void OnEnable()
+        {
+            if (playerStamina != null)
+            {
+                playerStamina.OnStaminaChanged += HandleStaminaChanged;
+                playerStamina.OnExhaustionChanged += HandleExhaustionChanged;
+                HandleStaminaChanged(playerStamina.CurrentStamina, playerStamina.MaxStamina);
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (playerStamina != null)
+            {
+                playerStamina.OnStaminaChanged -= HandleStaminaChanged;
+                playerStamina.OnExhaustionChanged -= HandleExhaustionChanged;
+            }
         }
 
         private void OnDestroy()
@@ -48,41 +61,120 @@ namespace ProjectRac.UI
             }
         }
 
-        private void CreateTexture()
+        public void BindPlayerStamina(PlayerStamina stamina)
         {
-            _whiteTexture = new Texture2D(1, 1);
-            _whiteTexture.SetPixel(0, 0, Color.white);
-            _whiteTexture.Apply();
+            if (playerStamina != null)
+            {
+                playerStamina.OnStaminaChanged -= HandleStaminaChanged;
+                playerStamina.OnExhaustionChanged -= HandleExhaustionChanged;
+            }
+
+            playerStamina = stamina;
+            if (playerStamina != null && enabled)
+            {
+                playerStamina.OnStaminaChanged += HandleStaminaChanged;
+                playerStamina.OnExhaustionChanged += HandleExhaustionChanged;
+                HandleStaminaChanged(playerStamina.CurrentStamina, playerStamina.MaxStamina);
+            }
+        }
+
+        public void SetUGUIReferences(Slider slider, Image fill, Text text)
+        {
+            staminaSlider = slider;
+            fillImage = fill;
+            valueText = text;
+
+            if (playerStamina != null)
+            {
+                HandleStaminaChanged(playerStamina.CurrentStamina, playerStamina.MaxStamina);
+            }
+        }
+
+        private void ResolveReferences()
+        {
+            if (playerStamina == null)
+            {
+                playerStamina = GetComponentInParent<PlayerStamina>();
+                if (playerStamina == null)
+                {
+                    playerStamina = FindAnyObjectByType<PlayerStamina>();
+                }
+            }
+
+            if (staminaSlider == null)
+            {
+                staminaSlider = GetComponentInChildren<Slider>();
+            }
         }
 
         private void Update()
         {
-            if (optionalSlider != null && playerStamina != null)
+            if (_isExhausted)
             {
-                optionalSlider.value = playerStamina.StaminaNormalized;
+                // Pulsing red effect when exhausted
+                float pulse = 0.7f + 0.3f * Mathf.Sin(Time.time * 8f);
+                Color activeColor = new Color(exhaustedColor.r, exhaustedColor.g, exhaustedColor.b, pulse);
+
+                if (fillImage != null) fillImage.color = activeColor;
+                if (valueText != null) valueText.color = activeColor;
+            }
+        }
+
+        private void HandleStaminaChanged(float current, float max)
+        {
+            float ratio = max > 0f ? Mathf.Clamp01(current / max) : 0f;
+
+            if (staminaSlider != null)
+            {
+                staminaSlider.value = ratio;
+            }
+
+            if (!_isExhausted)
+            {
+                Color targetColor = ratio < 0.2f ? exhaustedColor : (ratio < 0.4f ? warningColor : normalColor);
+                if (fillImage != null) fillImage.color = targetColor;
+                if (valueText != null) valueText.color = Color.white;
+            }
+
+            if (valueText != null)
+            {
+                valueText.text = _isExhausted
+                    ? "STAMINA: EXAUSTO!"
+                    : $"STAMINA: {Mathf.CeilToInt(current)} / {Mathf.CeilToInt(max)}";
+            }
+        }
+
+        private void HandleExhaustionChanged(bool isExhausted)
+        {
+            _isExhausted = isExhausted;
+            if (playerStamina != null)
+            {
+                HandleStaminaChanged(playerStamina.CurrentStamina, playerStamina.MaxStamina);
             }
         }
 
         private void OnGUI()
         {
-            if (playerStamina == null || _whiteTexture == null) return;
+            // If uGUI is assigned and active, suppress OnGUI to avoid duplicate rendering
+            if (staminaSlider != null || fillImage != null) return;
+            if (playerStamina == null) return;
+
+            if (_whiteTexture == null)
+            {
+                _whiteTexture = new Texture2D(1, 1);
+                _whiteTexture.SetPixel(0, 0, Color.white);
+                _whiteTexture.Apply();
+            }
 
             float yPos = Screen.height - barYOffsetFromBottom;
             float currentRatio = playerStamina.StaminaNormalized;
 
-            // 1. Draw Outer Border (1px)
-            Rect borderRect = new Rect(barX - 1f, yPos - 1f, barWidth + 2f, barHeight + 2f);
-            DrawColoredRect(borderRect, borderColor);
+            DrawColoredRect(new Rect(barX - 1f, yPos - 1f, barWidth + 2f, barHeight + 2f), borderColor);
+            DrawColoredRect(new Rect(barX, yPos, barWidth, barHeight), backgroundColor);
 
-            // 2. Draw Background
-            Rect bgRect = new Rect(barX, yPos, barWidth, barHeight);
-            DrawColoredRect(bgRect, backgroundColor);
-
-            // 3. Select Color
             Color barColor = normalColor;
-            if (playerStamina.IsExhausted || currentRatio < 0.2f)
+            if (_isExhausted || currentRatio < 0.2f)
             {
-                // Pulsing red effect when exhausted
                 float pulse = 0.7f + 0.3f * Mathf.Sin(Time.time * 8f);
                 barColor = new Color(exhaustedColor.r, exhaustedColor.g, exhaustedColor.b, pulse);
             }
@@ -91,15 +183,12 @@ namespace ProjectRac.UI
                 barColor = warningColor;
             }
 
-            // 4. Draw Fill Bar
             float fillWidth = barWidth * currentRatio;
             if (fillWidth > 0f)
             {
-                Rect fillRect = new Rect(barX, yPos, fillWidth, barHeight);
-                DrawColoredRect(fillRect, barColor);
+                DrawColoredRect(new Rect(barX, yPos, fillWidth, barHeight), barColor);
             }
 
-            // 5. Draw Text Label (e.g. STAMINA: 85 / 100)
             if (_labelStyle == null)
             {
                 _labelStyle = new GUIStyle(GUI.skin.label)
@@ -108,21 +197,17 @@ namespace ProjectRac.UI
                     fontSize = 12,
                     fontStyle = FontStyle.Bold
                 };
-                _labelStyle.normal.textColor = Color.white;
             }
 
-            string labelText = playerStamina.IsExhausted
+            string labelText = _isExhausted
                 ? "STAMINA: EXAUSTO!"
                 : $"STAMINA: {Mathf.CeilToInt(playerStamina.CurrentStamina)} / {Mathf.CeilToInt(playerStamina.MaxStamina)}";
 
-            // Drop shadow for text readability
-            Rect shadowRect = new Rect(barX + 6f, yPos - 19f, barWidth, 20f);
             _labelStyle.normal.textColor = Color.black;
-            GUI.Label(shadowRect, labelText, _labelStyle);
+            GUI.Label(new Rect(barX + 6f, yPos - 19f, barWidth, 20f), labelText, _labelStyle);
 
-            Rect textRect = new Rect(barX + 5f, yPos - 20f, barWidth, 20f);
-            _labelStyle.normal.textColor = playerStamina.IsExhausted ? Color.red : Color.white;
-            GUI.Label(textRect, labelText, _labelStyle);
+            _labelStyle.normal.textColor = _isExhausted ? Color.red : Color.white;
+            GUI.Label(new Rect(barX + 5f, yPos - 20f, barWidth, 20f), labelText, _labelStyle);
         }
 
         private void DrawColoredRect(Rect rect, Color color)

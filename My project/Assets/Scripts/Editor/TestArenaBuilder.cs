@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using ProjectRac.Player;
 using ProjectRac.Interaction;
+using ProjectRac.UI;
 
 namespace ProjectRac.Editor
 {
@@ -142,6 +143,8 @@ namespace ProjectRac.Editor
                 inputHandler.SetActionAsset(actionAsset);
             }
 
+            player.AddComponent<PlayerStamina>();
+            player.AddComponent<StaminaBarUI>();
             player.AddComponent<FirstPersonController>();
             player.AddComponent<PlayerInteraction>();
 

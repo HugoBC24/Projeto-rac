@@ -22,6 +22,7 @@ namespace ProjectRac.Player
 
         private CharacterController _characterController;
         private PlayerInputHandler _inputHandler;
+        private PlayerStamina _stamina;
         private Vector3 _velocity;
         private float _currentSpeed;
         private bool _isGrounded;
@@ -30,6 +31,7 @@ namespace ProjectRac.Player
         {
             _characterController = GetComponent<CharacterController>();
             _inputHandler = GetComponent<PlayerInputHandler>();
+            _stamina = GetComponent<PlayerStamina>();
         }
 
         private void Update()
@@ -54,7 +56,22 @@ namespace ProjectRac.Player
         private void HandleMovement()
         {
             Vector2 input = _inputHandler.MoveInput;
-            float targetSpeed = _inputHandler.IsSprinting ? sprintSpeed : walkSpeed;
+            bool wantsToSprint = _inputHandler.IsSprinting && input != Vector2.zero;
+            bool isActuallySprinting = false;
+
+            if (wantsToSprint)
+            {
+                if (_stamina != null)
+                {
+                    isActuallySprinting = _stamina.TryConsumeSprint(Time.deltaTime);
+                }
+                else
+                {
+                    isActuallySprinting = true;
+                }
+            }
+
+            float targetSpeed = isActuallySprinting ? sprintSpeed : walkSpeed;
 
             if (input == Vector2.zero)
             {
@@ -72,7 +89,16 @@ namespace ProjectRac.Player
         {
             if (_isGrounded && _inputHandler.JumpTriggered)
             {
-                _velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                bool canJump = true;
+                if (_stamina != null)
+                {
+                    canJump = _stamina.TryConsumeJump();
+                }
+
+                if (canJump)
+                {
+                    _velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                }
             }
 
             // Apply gravity over time

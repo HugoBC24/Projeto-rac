@@ -1,13 +1,10 @@
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.UI;
-using UnityEngine.EventSystems;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using UnityEngine.InputSystem;
 using ProjectRac.Player;
 using ProjectRac.Interaction;
-using ProjectRac.UI;
+using ProjectRac.Weapons;
 
 namespace ProjectRac.Editor
 {
@@ -29,56 +26,112 @@ namespace ProjectRac.Editor
             arenaRoot = new GameObject("TestArena");
             Undo.RegisterCreatedObjectUndo(arenaRoot, "Create Arena Root");
 
-            // 2. Main Floor
-            GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            floor.name = "Floor";
-            floor.transform.parent = arenaRoot.transform;
-            floor.transform.position = new Vector3(0, -0.5f, 0);
-            floor.transform.localScale = new Vector3(60f, 1f, 60f);
+            // 2. Main Floor & Walls
+            BuildFloorAndWalls(arenaRoot.transform);
 
-            // 3. Surrounding Walls
-            CreateWall(arenaRoot.transform, "Wall_North", new Vector3(0, 2.5f, 30f), new Vector3(60f, 5f, 1f));
-            CreateWall(arenaRoot.transform, "Wall_South", new Vector3(0, 2.5f, -30f), new Vector3(60f, 5f, 1f));
-            CreateWall(arenaRoot.transform, "Wall_East", new Vector3(30f, 2.5f, 0), new Vector3(1f, 5f, 60f));
-            CreateWall(arenaRoot.transform, "Wall_West", new Vector3(-30f, 2.5f, 0), new Vector3(1f, 5f, 60f));
+            // 3. Platforms & Ramp for jump/slope testing
+            BuildPlatformsAndRamp(arenaRoot.transform);
 
-            // 4. Platforms & Ramp for jump/slope testing
-            GameObject platform1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            platform1.name = "Platform_Low";
-            platform1.transform.parent = arenaRoot.transform;
-            platform1.transform.position = new Vector3(10f, 0.75f, 10f);
-            platform1.transform.localScale = new Vector3(6f, 1.5f, 6f);
-
-            GameObject ramp = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            ramp.name = "Ramp";
-            ramp.transform.parent = arenaRoot.transform;
-            ramp.transform.position = new Vector3(10f, 0.75f, 4f);
-            ramp.transform.rotation = Quaternion.Euler(20f, 0, 0);
-            ramp.transform.localScale = new Vector3(4f, 0.5f, 5f);
-
-            GameObject platformHigh = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            platformHigh.name = "Platform_High";
-            platformHigh.transform.parent = arenaRoot.transform;
-            platformHigh.transform.position = new Vector3(10f, 1.75f, 18f);
-            platformHigh.transform.localScale = new Vector3(6f, 3.5f, 6f);
-
-            // 5. Interactive Test Objects
+            // 4. Interactive Test Objects
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Alpha", new Vector3(-6f, 1f, 8f));
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Beta", new Vector3(-10f, 1f, 8f));
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Gamma", new Vector3(10f, 4f, 18f));
 
-            // 6. Setup Player
-            GameObject player = SetupPlayer();
+            // 5. Physics Target Stack (Boxes to shoot down with Slingshot)
+            BuildPhysicsTargetStack(arenaRoot.transform, new Vector3(0f, 0f, 16f));
 
-            // 7. Setup Responsive uGUI Canvas & Stamina HUD
-            SetupHUDCanvas(player);
+            // 6. Setup ShootPool
+            var projectilePool = SetupShootPool(arenaRoot.transform);
+
+            // 7. Setup Player with Slingshot
+            GameObject player = SetupPlayer(projectilePool);
+
+            // 8. Setup Responsive uGUI Canvas & Stamina HUD
+            HUDCanvasBuilder.SetupHUDCanvas(player);
 
             // Mark Scene Dirty and Save
             EditorSceneManager.MarkSceneDirty(activeScene);
             EditorSceneManager.SaveScene(activeScene);
 
             Undo.CollapseUndoOperations(undoGroup);
-            Debug.Log("[TestArenaBuilder] Arena de Teste FPAA configurada com Canvas responsivo! Pressione PLAY para testar.");
+            Debug.Log("[TestArenaBuilder] Arena de Teste FPAA configurada com Estilingue e ShootPool! Pressione PLAY para testar.");
+        }
+
+        private static void BuildFloorAndWalls(Transform root)
+        {
+            GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            floor.name = "Floor";
+            floor.transform.parent = root;
+            floor.transform.position = new Vector3(0, -0.5f, 0);
+            floor.transform.localScale = new Vector3(60f, 1f, 60f);
+
+            CreateWall(root, "Wall_North", new Vector3(0, 2.5f, 30f), new Vector3(60f, 5f, 1f));
+            CreateWall(root, "Wall_South", new Vector3(0, 2.5f, -30f), new Vector3(60f, 5f, 1f));
+            CreateWall(root, "Wall_East", new Vector3(30f, 2.5f, 0), new Vector3(1f, 5f, 60f));
+            CreateWall(root, "Wall_West", new Vector3(-30f, 2.5f, 0), new Vector3(1f, 5f, 60f));
+        }
+
+        private static void BuildPlatformsAndRamp(Transform root)
+        {
+            GameObject platform1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            platform1.name = "Platform_Low";
+            platform1.transform.parent = root;
+            platform1.transform.position = new Vector3(10f, 0.75f, 10f);
+            platform1.transform.localScale = new Vector3(6f, 1.5f, 6f);
+
+            GameObject ramp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ramp.name = "Ramp";
+            ramp.transform.parent = root;
+            ramp.transform.position = new Vector3(10f, 0.75f, 4f);
+            ramp.transform.rotation = Quaternion.Euler(20f, 0, 0);
+            ramp.transform.localScale = new Vector3(4f, 0.5f, 5f);
+
+            GameObject platformHigh = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            platformHigh.name = "Platform_High";
+            platformHigh.transform.parent = root;
+            platformHigh.transform.position = new Vector3(10f, 1.75f, 18f);
+            platformHigh.transform.localScale = new Vector3(6f, 3.5f, 6f);
+        }
+
+        private static void BuildPhysicsTargetStack(Transform root, Vector3 centerPos)
+        {
+            GameObject stackRoot = new GameObject("PhysicsTarget_Boxes");
+            stackRoot.transform.parent = root;
+            stackRoot.transform.position = centerPos;
+
+            // Base row (3 boxes)
+            CreatePhysicsBox(stackRoot.transform, new Vector3(-1.1f, 0.5f, 0f));
+            CreatePhysicsBox(stackRoot.transform, new Vector3(0f, 0.5f, 0f));
+            CreatePhysicsBox(stackRoot.transform, new Vector3(1.1f, 0.5f, 0f));
+
+            // Middle row (2 boxes)
+            CreatePhysicsBox(stackRoot.transform, new Vector3(-0.55f, 1.5f, 0f));
+            CreatePhysicsBox(stackRoot.transform, new Vector3(0.55f, 1.5f, 0f));
+
+            // Top box (1 box)
+            CreatePhysicsBox(stackRoot.transform, new Vector3(0f, 2.5f, 0f));
+        }
+
+        private static void CreatePhysicsBox(Transform parent, Vector3 localPos)
+        {
+            GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            box.name = "TargetBox";
+            box.transform.parent = parent;
+            box.transform.localPosition = localPos;
+            box.transform.localScale = new Vector3(0.95f, 0.95f, 0.95f);
+
+            var rb = box.AddComponent<Rigidbody>();
+            rb.mass = 1.2f;
+            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+
+            var renderer = box.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                var block = new MaterialPropertyBlock();
+                renderer.GetPropertyBlock(block);
+                block.SetColor("_BaseColor", new Color(0.75f, 0.55f, 0.32f)); // Wood color
+                renderer.SetPropertyBlock(block);
+            }
         }
 
         private static void CreateWall(Transform parent, string name, Vector3 pos, Vector3 scale)
@@ -106,7 +159,16 @@ namespace ProjectRac.Editor
             interactable.AddComponent<InteractableTestObject>();
         }
 
-        private static GameObject SetupPlayer()
+        private static SlingshotProjectilePool SetupShootPool(Transform root)
+        {
+            GameObject poolObj = new GameObject("SlingshotPool");
+            poolObj.transform.parent = root;
+            var pool = poolObj.AddComponent<SlingshotProjectilePool>();
+            pool.Configure(null, 25);
+            return pool;
+        }
+
+        private static GameObject SetupPlayer(SlingshotProjectilePool pool)
         {
             var existingCams = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include);
             foreach (var cam in existingCams)
@@ -149,6 +211,7 @@ namespace ProjectRac.Editor
             player.AddComponent<FirstPersonController>();
             player.AddComponent<PlayerInteraction>();
 
+            // Setup Camera & Slingshot Weapon
             GameObject cameraObj = new GameObject("FirstPersonCamera");
             cameraObj.transform.parent = player.transform;
             cameraObj.transform.localPosition = new Vector3(0f, 1.7f, 0f);
@@ -160,122 +223,10 @@ namespace ProjectRac.Editor
             cameraObj.AddComponent<AudioListener>();
             cameraObj.AddComponent<FirstPersonCameraLook>();
 
+            var slingshot = cameraObj.AddComponent<SlingshotWeapon>();
+            slingshot.BindPool(pool);
+
             return player;
-        }
-
-        private static void SetupHUDCanvas(GameObject player)
-        {
-            GameObject canvasObj = GameObject.Find("HUD_Canvas");
-            if (canvasObj != null)
-            {
-                Undo.DestroyObjectImmediate(canvasObj);
-            }
-
-            canvasObj = new GameObject("HUD_Canvas");
-            Undo.RegisterCreatedObjectUndo(canvasObj, "Create HUD Canvas");
-
-            Canvas canvas = canvasObj.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
-
-            canvasObj.AddComponent<GraphicRaycaster>();
-
-            // EventSystem
-            if (Object.FindAnyObjectByType<EventSystem>() == null)
-            {
-                GameObject eventSys = new GameObject("EventSystem");
-                Undo.RegisterCreatedObjectUndo(eventSys, "Create EventSystem");
-                eventSys.AddComponent<EventSystem>();
-                eventSys.AddComponent<InputSystemUIInputModule>();
-            }
-
-            // Stamina HUD Root Container
-            GameObject staminaRoot = new GameObject("StaminaHUD");
-            staminaRoot.transform.SetParent(canvasObj.transform, false);
-
-            RectTransform rootRt = staminaRoot.AddComponent<RectTransform>();
-            rootRt.anchorMin = new Vector2(0f, 0f);
-            rootRt.anchorMax = new Vector2(0f, 0f);
-            rootRt.pivot = new Vector2(0f, 0f);
-            rootRt.anchoredPosition = new Vector2(40f, 40f);
-            rootRt.sizeDelta = new Vector2(260f, 24f);
-
-            // Background Panel
-            GameObject bgObj = new GameObject("Background");
-            bgObj.transform.SetParent(staminaRoot.transform, false);
-            RectTransform bgRt = bgObj.AddComponent<RectTransform>();
-            bgRt.anchorMin = Vector2.zero;
-            bgRt.anchorMax = Vector2.one;
-            bgRt.sizeDelta = Vector2.zero;
-
-            Image bgImg = bgObj.AddComponent<Image>();
-            bgImg.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
-
-            Outline bgOutline = bgObj.AddComponent<Outline>();
-            bgOutline.effectColor = new Color(0.7f, 0.7f, 0.7f, 0.75f);
-            bgOutline.effectDistance = new Vector2(1.5f, -1.5f);
-
-            // Slider & Fill Area
-            Slider slider = staminaRoot.AddComponent<Slider>();
-            slider.minValue = 0f;
-            slider.maxValue = 1f;
-            slider.value = 1f;
-            slider.interactable = false;
-            slider.transition = Selectable.Transition.None;
-
-            GameObject fillArea = new GameObject("Fill Area");
-            fillArea.transform.SetParent(staminaRoot.transform, false);
-            RectTransform fillAreaRt = fillArea.AddComponent<RectTransform>();
-            fillAreaRt.anchorMin = Vector2.zero;
-            fillAreaRt.anchorMax = Vector2.one;
-            fillAreaRt.sizeDelta = new Vector2(-4f, -4f);
-            fillAreaRt.anchoredPosition = Vector2.zero;
-
-            GameObject fillObj = new GameObject("Fill");
-            fillObj.transform.SetParent(fillArea.transform, false);
-            RectTransform fillRt = fillObj.AddComponent<RectTransform>();
-            fillRt.anchorMin = Vector2.zero;
-            fillRt.anchorMax = Vector2.one;
-            fillRt.sizeDelta = Vector2.zero;
-
-            Image fillImg = fillObj.AddComponent<Image>();
-            fillImg.color = new Color(0.2f, 0.85f, 0.4f, 0.95f);
-
-            slider.fillRect = fillRt;
-            slider.targetGraphic = fillImg;
-
-            // Label Text
-            GameObject labelObj = new GameObject("Label");
-            labelObj.transform.SetParent(staminaRoot.transform, false);
-            RectTransform labelRt = labelObj.AddComponent<RectTransform>();
-            labelRt.anchorMin = new Vector2(0f, 1f);
-            labelRt.anchorMax = new Vector2(1f, 1f);
-            labelRt.pivot = new Vector2(0f, 0f);
-            labelRt.anchoredPosition = new Vector2(2f, 6f);
-            labelRt.sizeDelta = new Vector2(0f, 22f);
-
-            Text labelText = labelObj.AddComponent<Text>();
-            labelText.text = "STAMINA: 100 / 100";
-            labelText.fontSize = 13;
-            labelText.fontStyle = FontStyle.Bold;
-            labelText.alignment = TextAnchor.MiddleLeft;
-            labelText.color = Color.white;
-            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-
-            Shadow textShadow = labelObj.AddComponent<Shadow>();
-            textShadow.effectColor = new Color(0f, 0f, 0f, 0.9f);
-            textShadow.effectDistance = new Vector2(1f, -1f);
-
-            // Bind UI Controller
-            StaminaBarUI staminaUI = staminaRoot.AddComponent<StaminaBarUI>();
-            var playerStamina = player.GetComponent<PlayerStamina>();
-            staminaUI.BindPlayerStamina(playerStamina);
-            staminaUI.SetUGUIReferences(slider, fillImg, labelText);
         }
     }
 }

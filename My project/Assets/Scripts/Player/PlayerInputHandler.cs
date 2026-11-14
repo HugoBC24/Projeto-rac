@@ -14,6 +14,8 @@ namespace ProjectRac.Player
         public bool IsSprinting { get; private set; }
         public bool InteractTriggered { get; private set; }
         public bool PrimaryActionTriggered { get; private set; }
+        public bool PrimaryActionHeld { get; private set; }
+        public bool PrimaryActionReleased { get; private set; }
 
         private InputAction _moveAction;
         private InputAction _lookAction;
@@ -45,6 +47,7 @@ namespace ProjectRac.Player
             JumpTriggered = false;
             InteractTriggered = false;
             PrimaryActionTriggered = false;
+            PrimaryActionReleased = false;
         }
 
         public void SetActionAsset(InputActionAsset asset)
@@ -133,7 +136,17 @@ namespace ProjectRac.Player
 
             if (_attackAction != null)
             {
-                _attackAction.performed += ctx => PrimaryActionTriggered = true;
+                _attackAction.started += ctx => PrimaryActionHeld = true;
+                _attackAction.performed += ctx =>
+                {
+                    PrimaryActionTriggered = true;
+                    PrimaryActionHeld = true;
+                };
+                _attackAction.canceled += ctx =>
+                {
+                    PrimaryActionHeld = false;
+                    PrimaryActionReleased = true;
+                };
             }
         }
 

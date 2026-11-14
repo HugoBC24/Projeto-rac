@@ -49,6 +49,21 @@ namespace ProjectRac.Effects
             SetupPostProcessingVolume();
         }
 
+        private void Start()
+        {
+            // Re-evaluate initial stamina safely after all components finished Awake()
+            if (playerStamina != null)
+            {
+                HandleStaminaChanged(playerStamina.CurrentStamina, playerStamina.MaxStamina);
+            }
+            else
+            {
+                _targetWeight = 0f;
+                _currentWeight = 0f;
+                if (_volume != null) _volume.enabled = false;
+            }
+        }
+
         private void OnEnable()
         {
             if (playerStamina != null)
@@ -118,14 +133,14 @@ namespace ProjectRac.Effects
             // 1. Negative Lens Distortion (Barrel distortion simulating exhaustion)
             _lensDistortion = _runtimeProfile.Add<LensDistortion>(true);
             _lensDistortion.intensity.overrideState = true;
-            _lensDistortion.intensity.value = maxLensDistortion;
+            _lensDistortion.intensity.value = 0f; // Start strictly at zero
             _lensDistortion.scale.overrideState = true;
             _lensDistortion.scale.value = 1.0f;
 
             // 2. Dark Vignette (Tunnel vision peripheral darkening)
             _vignette = _runtimeProfile.Add<Vignette>(true);
             _vignette.intensity.overrideState = true;
-            _vignette.intensity.value = maxVignetteIntensity;
+            _vignette.intensity.value = 0f; // Start strictly at zero
             _vignette.smoothness.overrideState = true;
             _vignette.smoothness.value = vignetteSmoothness;
             _vignette.color.overrideState = true;
@@ -136,12 +151,13 @@ namespace ProjectRac.Effects
             _filmGrain.type.overrideState = true;
             _filmGrain.type.value = grainType;
             _filmGrain.intensity.overrideState = true;
-            _filmGrain.intensity.value = maxFilmGrainIntensity;
+            _filmGrain.intensity.value = 0f; // Start strictly at zero
             _filmGrain.response.overrideState = true;
             _filmGrain.response.value = 0.8f;
 
             _volume.profile = _runtimeProfile;
             _volume.weight = 0f;
+            _volume.enabled = false; // Kept OFF until stamina falls below threshold
         }
 
         private void Update()
@@ -151,16 +167,39 @@ namespace ProjectRac.Effects
             // Smoothly move towards target exhaustion weight
             _currentWeight = Mathf.MoveTowards(_currentWeight, _targetWeight, transitionSpeed * Time.deltaTime);
 
-            float finalWeight = _currentWeight;
+            // When stamina is healthy (>= 35) and fade-out is complete, completely shut off the Volume
+            if (_targetWeight <= 0f && _currentWeight <= 0.001f)
+            {
+                if (_volume.enabled)
+                {
+                    _volume.enabled = false;
+                    _volume.weight = 0f;
+                    _lensDistortion.intensity.value = 0f;
+                    _vignette.intensity.value = 0f;
+                    _filmGrain.intensity.value = 0f;
+                }
+                return;
+            }
+
+            // Below threshold (< 35): ensure Volume is active
+            if (!_volume.enabled)
+            {
+                _volume.enabled = true;
+            }
+
+            float effectiveWeight = _currentWeight;
 
             // Subtle pulsing breathing rhythm when stamina is near depletion
             if (enablePulseAtZero && _currentWeight > 0.65f && playerStamina != null && playerStamina.CurrentStamina <= 5f)
             {
                 float pulse = Mathf.Sin(Time.time * pulseFrequency) * pulseAmplitude;
-                finalWeight = Mathf.Clamp01(_currentWeight + pulse);
+                effectiveWeight = Mathf.Clamp01(_currentWeight + pulse);
             }
 
-            _volume.weight = finalWeight;
+            _volume.weight = effectiveWeight;
+            _lensDistortion.intensity.value = Mathf.Lerp(0f, maxLensDistortion, effectiveWeight);
+            _vignette.intensity.value = Mathf.Lerp(0f, maxVignetteIntensity, effectiveWeight);
+            _filmGrain.intensity.value = Mathf.Lerp(0f, maxFilmGrainIntensity, effectiveWeight);
         }
 
         private void HandleStaminaChanged(float currentStamina, float maxStamina)
@@ -178,6 +217,11 @@ namespace ProjectRac.Effects
                 else
                 {
                     _targetWeight = 1.0f;
+                }
+
+                if (_volume != null && !_volume.enabled)
+                {
+                    _volume.enabled = true;
                 }
             }
         }

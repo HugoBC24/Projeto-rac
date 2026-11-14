@@ -14,7 +14,7 @@ namespace ProjectRac.Player
         [SerializeField] private float minStaminaToSprintAfterExhaustion = 20f;
 
         public float MaxStamina => maxStamina;
-        public float CurrentStamina { get; private set; }
+        public float CurrentStamina { get; private set; } = 100f;
         public float StaminaNormalized => maxStamina > 0f ? Mathf.Clamp01(CurrentStamina / maxStamina) : 0f;
         public bool IsExhausted { get; private set; }
 
@@ -27,6 +27,7 @@ namespace ProjectRac.Player
         {
             CurrentStamina = maxStamina;
             IsExhausted = false;
+            OnStaminaChanged?.Invoke(CurrentStamina, maxStamina);
         }
 
         private void Update()

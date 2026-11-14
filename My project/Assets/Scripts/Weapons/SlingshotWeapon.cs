@@ -97,23 +97,65 @@ namespace ProjectRac.Weapons
         {
             if (playerCamera == null || projectilePool == null) return;
 
-            // Target where the crosshair is aiming
-            Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-            Vector3 targetPoint = Physics.Raycast(ray, out RaycastHit hit, 120f, ~0, QueryTriggerInteraction.Ignore)
-                ? hit.point
-                : ray.GetPoint(120f);
+            Transform rootTransform = transform.root;
 
-            Vector3 spawnOrigin = muzzlePoint != null
-                ? muzzlePoint.position
-                : playerCamera.transform.position
-                  + playerCamera.transform.right * cameraRelativeOffset.x
-                  + playerCamera.transform.up * cameraRelativeOffset.y
-                  + playerCamera.transform.forward * cameraRelativeOffset.z;
+            // Target where the crosshair is aiming, ignoring player/shooter colliders
+            Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            RaycastHit[] hits = Physics.RaycastAll(ray, 120f, ~0, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+            Vector3 targetPoint = ray.GetPoint(120f);
+            for (int i = 0; i < hits.Length; i++)
+            {
+                var hitTransform = hits[i].transform;
+                if (hitTransform == rootTransform || hitTransform.IsChildOf(rootTransform) || hits[i].collider.CompareTag("Player"))
+                {
+                    continue;
+                }
+
+                targetPoint = hits[i].point;
+                break;
+            }
+
+            Vector3 spawnOrigin;
+            if (muzzlePoint != null)
+            {
+                spawnOrigin = muzzlePoint.position;
+            }
+            else
+            {
+                Vector3 forward = playerCamera.transform.forward;
+                Vector3 right = playerCamera.transform.right;
+                Vector3 up = playerCamera.transform.up;
+
+                Vector3 desired = playerCamera.transform.position
+                                  + right * cameraRelativeOffset.x
+                                  + up * cameraRelativeOffset.y
+                                  + forward * cameraRelativeOffset.z;
+
+                // If aiming close to world geometry, ensure spawn point doesn't penetrate walls/floors
+                Vector3 camToDesired = desired - playerCamera.transform.position;
+                float dist = camToDesired.magnitude;
+                if (dist > 0.001f && Physics.Raycast(playerCamera.transform.position, camToDesired.normalized, out RaycastHit obstHit, dist, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (obstHit.transform != rootTransform && !obstHit.transform.IsChildOf(rootTransform) && !obstHit.collider.CompareTag("Player"))
+                    {
+                        desired = obstHit.point - camToDesired.normalized * 0.05f;
+                    }
+                }
+
+                spawnOrigin = desired;
+            }
 
             Vector3 shootDirection = (targetPoint - spawnOrigin).normalized;
+            if (shootDirection == Vector3.zero)
+            {
+                shootDirection = playerCamera.transform.forward;
+            }
+
             float launchSpeed = Mathf.Lerp(minLaunchForce, maxLaunchForce, ChargeNormalized);
 
-            projectilePool.SpawnProjectile(spawnOrigin, shootDirection * launchSpeed);
+            projectilePool.SpawnProjectile(spawnOrigin, shootDirection * launchSpeed, rootTransform);
             _lastFireTime = Time.time;
         }
 

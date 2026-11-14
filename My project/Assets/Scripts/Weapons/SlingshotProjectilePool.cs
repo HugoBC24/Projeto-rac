@@ -56,13 +56,13 @@ namespace ProjectRac.Weapons
             return projectile;
         }
 
-        public SlingshotProjectile SpawnProjectile(Vector3 position, Vector3 velocity)
+        public SlingshotProjectile SpawnProjectile(Vector3 position, Vector3 velocity, Transform owner = null)
         {
             SlingshotProjectile projectile = _availableQueue.Count > 0
                 ? _availableQueue.Dequeue()
                 : CreateNewPooledInstance();
 
-            projectile.Launch(position, velocity, this);
+            projectile.Launch(position, velocity, this, owner);
             return projectile;
         }
 

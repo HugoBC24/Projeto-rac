@@ -12,7 +12,9 @@ namespace ProjectRac.Weapons
         [SerializeField] private float maxLifetime = 4.0f;
 
         private Rigidbody _rigidbody;
+        private Collider _collider;
         private SlingshotProjectilePool _pool;
+        private Transform _owner;
         private float _spawnTime;
         private bool _isLaunched;
         private Vector3 _currentVelocity;
@@ -20,6 +22,7 @@ namespace ProjectRac.Weapons
         private void Awake()
         {
             _rigidbody = GetComponent<Rigidbody>();
+            _collider = GetComponent<Collider>();
             _rigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous;
         }
 
@@ -39,10 +42,28 @@ namespace ProjectRac.Weapons
             }
         }
 
-        public void Launch(Vector3 origin, Vector3 velocity, SlingshotProjectilePool pool)
+        public void Launch(Vector3 origin, Vector3 velocity, SlingshotProjectilePool pool, Transform owner = null)
         {
+            if (_collider == null) _collider = GetComponent<Collider>();
+            if (_rigidbody == null) _rigidbody = GetComponent<Rigidbody>();
+
             _pool = pool;
+            _owner = owner;
             transform.position = origin;
+
+            // Ignore collisions with the shooter/player
+            if (_owner != null && _collider != null)
+            {
+                var ownerColliders = _owner.GetComponentsInChildren<Collider>();
+                foreach (var col in ownerColliders)
+                {
+                    if (col != null && col != _collider)
+                    {
+                        Physics.IgnoreCollision(_collider, col, true);
+                    }
+                }
+            }
+
             gameObject.SetActive(true);
 
             _rigidbody.linearVelocity = velocity;
@@ -55,6 +76,17 @@ namespace ProjectRac.Weapons
         private void OnCollisionEnter(Collision collision)
         {
             if (!_isLaunched) return;
+
+            // Never collide with the shooter / player body
+            if (_owner != null && (collision.transform == _owner || collision.transform.IsChildOf(_owner)))
+            {
+                return;
+            }
+
+            if (collision.gameObject.CompareTag("Player"))
+            {
+                return;
+            }
 
             // Apply physical impulse to Rigidbody target
             if (collision.rigidbody != null)
@@ -71,7 +103,7 @@ namespace ProjectRac.Weapons
                 interactable.Interact();
             }
 
-            // Immediately destroy/recycle stone on collision as requested
+            // Immediately destroy/recycle stone on valid collision
             Recycle();
         }
 

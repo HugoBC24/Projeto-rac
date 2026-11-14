@@ -2,9 +2,11 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering.Universal;
 using ProjectRac.Player;
 using ProjectRac.Interaction;
 using ProjectRac.Weapons;
+using ProjectRac.Effects;
 
 namespace ProjectRac.Editor
 {
@@ -210,6 +212,7 @@ namespace ProjectRac.Editor
             player.AddComponent<PlayerStamina>();
             player.AddComponent<FirstPersonController>();
             player.AddComponent<PlayerInteraction>();
+            player.AddComponent<StaminaExhaustionPostProcess>();
 
             // Setup Camera & Slingshot Weapon
             GameObject cameraObj = new GameObject("FirstPersonCamera");
@@ -222,6 +225,13 @@ namespace ProjectRac.Editor
             camComponent.nearClipPlane = 0.1f;
             cameraObj.AddComponent<AudioListener>();
             cameraObj.AddComponent<FirstPersonCameraLook>();
+
+            var camData = cameraObj.GetComponent<UniversalAdditionalCameraData>();
+            if (camData == null)
+            {
+                camData = cameraObj.AddComponent<UniversalAdditionalCameraData>();
+            }
+            camData.renderPostProcessing = true;
 
             var slingshot = cameraObj.AddComponent<SlingshotWeapon>();
             slingshot.BindPool(pool);

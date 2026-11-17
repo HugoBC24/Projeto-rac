@@ -53,7 +53,7 @@ namespace ProjectRac.Player
             if (playerCamera == null) return;
 
             Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
-            if (Physics.Raycast(ray, out RaycastHit hit, interactionDistance, interactableLayers, QueryTriggerInteraction.Ignore))
+            if (Physics.Raycast(ray, out RaycastHit hit, interactionDistance, interactableLayers, QueryTriggerInteraction.Collide))
             {
                 var interactable = hit.collider.GetComponentInParent<IInteractable>();
                 if (interactable != null)

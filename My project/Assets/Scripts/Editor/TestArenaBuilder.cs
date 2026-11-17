@@ -268,9 +268,10 @@ namespace ProjectRac.Editor
             pickupObj.transform.parent = parent;
             pickupObj.transform.position = pos;
 
-            var trigger = pickupObj.AddComponent<SphereCollider>();
-            trigger.isTrigger = true;
-            trigger.radius = 1.2f;
+            var boxCol = pickupObj.AddComponent<BoxCollider>();
+            boxCol.isTrigger = false;
+            boxCol.size = new Vector3(0.5f, 0.4f, 1.1f);
+            boxCol.center = new Vector3(0f, 0.12f, 0f);
 
             pickupObj.AddComponent<ShotgunPickup>();
         }

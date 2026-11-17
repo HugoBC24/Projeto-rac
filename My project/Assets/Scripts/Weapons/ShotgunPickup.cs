@@ -9,26 +9,36 @@ namespace ProjectRac.Weapons
         [Header("3D Model Customization (Inspector)")]
         [Tooltip("Drag & drop any custom 3D model/prefab here to replace the world pickup model!")]
         [SerializeField] private GameObject customWorldModelPrefab;
-        [SerializeField] private Vector3 modelOffset = new Vector3(0f, 0.4f, 0f);
-        [SerializeField] private Vector3 modelRotation = new Vector3(12f, 45f, 0f);
+        [SerializeField] private Vector3 modelOffset = new Vector3(0f, 0.08f, 0f);
+        [SerializeField] private Vector3 modelRotation = new Vector3(0f, 35f, 0f);
         [SerializeField] private Vector3 modelScale = new Vector3(1f, 1f, 1f);
-
-        [Header("Idle Animation Settings")]
-        [SerializeField] private float bobFrequency = 2.5f;
-        [SerializeField] private float bobAmplitude = 0.08f;
-        [SerializeField] private float rotationSpeed = 45f;
 
         [Header("Audio Feedback")]
         [SerializeField] private AudioClip pickupSound;
 
         private GameObject _modelInstance;
-        private Vector3 _initialLocalPos;
         private bool _isPickedUp;
 
         private void Awake()
         {
+            EnsureSolidCollider();
             SetupWorldModel();
-            _initialLocalPos = _modelInstance != null ? _modelInstance.transform.localPosition : modelOffset;
+        }
+
+        private void EnsureSolidCollider()
+        {
+            var col = GetComponent<Collider>();
+            if (col != null)
+            {
+                col.isTrigger = false;
+            }
+            else
+            {
+                var box = gameObject.AddComponent<BoxCollider>();
+                box.size = new Vector3(0.45f, 0.35f, 0.95f);
+                box.center = new Vector3(0f, 0.15f, 0f);
+                box.isTrigger = false;
+            }
         }
 
         private void SetupWorldModel()
@@ -46,16 +56,6 @@ namespace ProjectRac.Weapons
             _modelInstance.transform.localPosition = modelOffset;
             _modelInstance.transform.localRotation = Quaternion.Euler(modelRotation);
             _modelInstance.transform.localScale = modelScale;
-        }
-
-        private void Update()
-        {
-            if (_modelInstance == null || _isPickedUp) return;
-
-            // Idle floating bob & rotate
-            float newY = _initialLocalPos.y + Mathf.Sin(Time.time * bobFrequency) * bobAmplitude;
-            _modelInstance.transform.localPosition = new Vector3(_initialLocalPos.x, newY, _initialLocalPos.z);
-            _modelInstance.transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime, Space.World);
         }
 
         public string GetInteractionPrompt()

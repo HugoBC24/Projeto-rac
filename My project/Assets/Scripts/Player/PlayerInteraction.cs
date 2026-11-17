@@ -1,5 +1,6 @@
 using UnityEngine;
 using ProjectRac.Interaction;
+using ProjectRac.UI;
 
 namespace ProjectRac.Player
 {
@@ -12,6 +13,7 @@ namespace ProjectRac.Player
         [SerializeField] private PlayerInputHandler inputHandler;
 
         [Header("UI Feedback")]
+        [SerializeField] private CrosshairHUD crosshairHUD;
         [SerializeField] private bool showCrosshairAndPrompt = true;
 
         private IInteractable _currentInteractable;
@@ -28,6 +30,16 @@ namespace ProjectRac.Player
             {
                 inputHandler = GetComponent<PlayerInputHandler>();
             }
+
+            if (crosshairHUD == null)
+            {
+                crosshairHUD = FindAnyObjectByType<CrosshairHUD>();
+            }
+        }
+
+        public void BindCrosshairHUD(CrosshairHUD hud)
+        {
+            crosshairHUD = hud;
         }
 
         private void Update()
@@ -48,12 +60,17 @@ namespace ProjectRac.Player
                 {
                     _currentInteractable = interactable;
                     _currentPrompt = interactable.GetInteractionPrompt();
+                    crosshairHUD?.SetTargetingInteractable(true, _currentPrompt);
                     return;
                 }
             }
 
-            _currentInteractable = null;
-            _currentPrompt = "";
+            if (_currentInteractable != null)
+            {
+                _currentInteractable = null;
+                _currentPrompt = "";
+                crosshairHUD?.SetTargetingInteractable(false, "");
+            }
         }
 
         private void HandleInteraction()
@@ -66,9 +83,9 @@ namespace ProjectRac.Player
 
         private void OnGUI()
         {
-            if (!showCrosshairAndPrompt || Cursor.lockState != CursorLockMode.Locked) return;
+            // If uGUI Crosshair is active, suppress legacy OnGUI to prevent duplicate reticles
+            if (crosshairHUD != null || !showCrosshairAndPrompt || Cursor.lockState != CursorLockMode.Locked) return;
 
-            // Simple clean crosshair at center
             float centerX = Screen.width / 2f;
             float centerY = Screen.height / 2f;
             float size = 4f;
@@ -76,7 +93,6 @@ namespace ProjectRac.Player
             GUI.color = _currentInteractable != null ? Color.green : Color.white;
             GUI.Box(new Rect(centerX - size / 2f, centerY - size / 2f, size, size), GUIContent.none);
 
-            // Interaction prompt text
             if (!string.IsNullOrEmpty(_currentPrompt))
             {
                 GUIStyle style = new GUIStyle(GUI.skin.label)
@@ -86,7 +102,6 @@ namespace ProjectRac.Player
                     fontStyle = FontStyle.Bold
                 };
                 style.normal.textColor = Color.white;
-
                 GUI.Label(new Rect(centerX - 150f, centerY + 30f, 300f, 30f), _currentPrompt, style);
             }
         }

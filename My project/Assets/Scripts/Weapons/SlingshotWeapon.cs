@@ -1,5 +1,6 @@
 using UnityEngine;
 using ProjectRac.Player;
+using ProjectRac.UI;
 
 namespace ProjectRac.Weapons
 {
@@ -10,6 +11,7 @@ namespace ProjectRac.Weapons
         [SerializeField] private Camera playerCamera;
         [SerializeField] private PlayerInputHandler inputHandler;
         [SerializeField] private Transform muzzlePoint;
+        [SerializeField] private SlingshotChargeHUD chargeHUD;
 
         [Header("Launch Force & Charge")]
         [SerializeField] private float minLaunchForce = 15f;
@@ -48,6 +50,11 @@ namespace ProjectRac.Weapons
             projectilePool = pool;
         }
 
+        public void BindChargeHUD(SlingshotChargeHUD hud)
+        {
+            chargeHUD = hud;
+        }
+
         private void ResolveReferences()
         {
             if (playerCamera == null)
@@ -66,6 +73,11 @@ namespace ProjectRac.Weapons
             {
                 projectilePool = FindAnyObjectByType<SlingshotProjectilePool>();
             }
+
+            if (chargeHUD == null)
+            {
+                chargeHUD = FindAnyObjectByType<SlingshotChargeHUD>();
+            }
         }
 
         private void Update()
@@ -82,6 +94,7 @@ namespace ProjectRac.Weapons
                 IsCharging = true;
                 _chargeTimer += Time.deltaTime;
                 ChargeNormalized = Mathf.Clamp01(_chargeTimer / maxChargeTime);
+                chargeHUD?.UpdateCharge(true, ChargeNormalized);
             }
 
             if (inputHandler.PrimaryActionReleased && IsCharging)
@@ -90,6 +103,7 @@ namespace ProjectRac.Weapons
                 IsCharging = false;
                 _chargeTimer = 0f;
                 ChargeNormalized = 0f;
+                chargeHUD?.UpdateCharge(false, 0f);
             }
         }
 
@@ -161,19 +175,17 @@ namespace ProjectRac.Weapons
 
         private void OnGUI()
         {
-            if (!IsCharging || _chargeTex == null || Cursor.lockState != CursorLockMode.Locked) return;
+            // If uGUI charge HUD is present, suppress legacy OnGUI
+            if (chargeHUD != null || !IsCharging || _chargeTex == null || Cursor.lockState != CursorLockMode.Locked) return;
 
-            // Draw elastic tension charge indicator beneath crosshair
             float centerX = Screen.width / 2f;
             float centerY = Screen.height / 2f;
             float bgWidth = 50f;
             float barHeight = 4f;
 
-            // Background
             GUI.color = new Color(0.1f, 0.1f, 0.1f, 0.7f);
             GUI.DrawTexture(new Rect(centerX - bgWidth / 2f, centerY + 16f, bgWidth, barHeight), _chargeTex);
 
-            // Fill color transitions from yellow to bright orange/red as tension peaks
             Color tensionColor = Color.Lerp(Color.yellow, new Color(1f, 0.35f, 0.1f), ChargeNormalized);
             GUI.color = tensionColor;
             GUI.DrawTexture(new Rect(centerX - bgWidth / 2f, centerY + 16f, bgWidth * ChargeNormalized, barHeight), _chargeTex);

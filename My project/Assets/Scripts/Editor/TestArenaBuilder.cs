@@ -31,7 +31,7 @@ namespace ProjectRac.Editor
             // 2. Main Floor & Walls
             BuildFloorAndWalls(arenaRoot.transform);
 
-            // 3. Platforms & Ramp (Preserved Exactly)
+            // 3. Platforms & Ramp (Platform_High resized for jump & visibility)
             BuildPlatformsAndRamp(arenaRoot.transform);
 
             // 4. Interactive Test Objects
@@ -43,7 +43,7 @@ namespace ProjectRac.Editor
             BuildPhysicsTargetStack(arenaRoot.transform, new Vector3(0f, 0f, 16f));
 
             // 5b. World Shotgun Pickup (Clearly Visible on High Platform Pedestal)
-            CreateShotgunPickup(arenaRoot.transform, new Vector3(10f, 4.02f, 18f));
+            CreateShotgunPickup(arenaRoot.transform, new Vector3(10f, 2.72f, 17f));
 
             // 6. Setup Shoot Pools (Slingshot + Shotgun)
             var (slingshotPool, pelletPool) = SetupShootPools(arenaRoot.transform);
@@ -94,8 +94,8 @@ namespace ProjectRac.Editor
             GameObject platformHigh = GameObject.CreatePrimitive(PrimitiveType.Cube);
             platformHigh.name = "Platform_High";
             platformHigh.transform.parent = root;
-            platformHigh.transform.position = new Vector3(10f, 1.75f, 18f);
-            platformHigh.transform.localScale = new Vector3(6f, 3.5f, 6f);
+            platformHigh.transform.position = new Vector3(10f, 1.10f, 17f);
+            platformHigh.transform.localScale = new Vector3(6f, 2.20f, 6f);
         }
 
         private static void BuildPhysicsTargetStack(Transform root, Vector3 centerPos)
@@ -273,30 +273,40 @@ namespace ProjectRac.Editor
 
         private static void CreateShotgunPickup(Transform parent, Vector3 pickupPos)
         {
-            // Pedestal: Base flush on Platform_High (3.50m), top at 4.00m
+            // Pedestal: Base flush on Platform_High (2.20m), top at 2.70m
             GameObject pedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             pedestal.name = "Shotgun_Pedestal";
             pedestal.transform.parent = parent;
-            pedestal.transform.position = new Vector3(pickupPos.x, 3.75f, pickupPos.z);
-            pedestal.transform.localScale = new Vector3(1.1f, 0.25f, 1.1f);
+            pedestal.transform.position = new Vector3(pickupPos.x, 2.45f, pickupPos.z);
+            pedestal.transform.localScale = new Vector3(1.2f, 0.25f, 1.2f);
 
             var renderer = pedestal.GetComponent<Renderer>();
             if (renderer != null)
             {
                 var block = new MaterialPropertyBlock();
-                block.SetColor("_BaseColor", new Color(0.2f, 0.28f, 0.45f)); // Deep metallic blue
+                block.SetColor("_BaseColor", new Color(0.18f, 0.25f, 0.42f)); // Deep metallic blue
                 renderer.SetPropertyBlock(block);
             }
+
+            // Highlighting point light over pedestal
+            GameObject lightObj = new GameObject("Pedestal_Light");
+            lightObj.transform.parent = pedestal.transform;
+            lightObj.transform.localPosition = new Vector3(0f, 1.0f, 0f);
+            var light = lightObj.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.95f, 0.8f);
+            light.intensity = 1.2f;
+            light.range = 5f;
 
             // Shotgun Pickup: positioned resting right on top of the pedestal
             GameObject pickupObj = new GameObject("ShotgunPickup");
             pickupObj.transform.parent = parent;
-            pickupObj.transform.position = pickupPos; // (10f, 4.02f, 18f)
+            pickupObj.transform.position = pickupPos; // (10f, 2.72f, 17f)
 
             var boxCol = pickupObj.AddComponent<BoxCollider>();
             boxCol.isTrigger = false;
-            boxCol.size = new Vector3(0.55f, 0.35f, 1.05f);
-            boxCol.center = new Vector3(0f, 0.12f, 0f);
+            boxCol.size = new Vector3(0.65f, 0.45f, 1.4f);
+            boxCol.center = new Vector3(0f, 0.15f, 0f);
 
             var pickup = pickupObj.AddComponent<ShotgunPickup>();
             pickup.ResolveWorldModel();

@@ -16,6 +16,8 @@ namespace ProjectRac.Player
         public bool PrimaryActionTriggered { get; private set; }
         public bool PrimaryActionHeld { get; private set; }
         public bool PrimaryActionReleased { get; private set; }
+        public bool QuickSlot1Triggered { get; private set; }
+        public bool QuickSlot2Triggered { get; private set; }
 
         private InputAction _moveAction;
         private InputAction _lookAction;
@@ -23,6 +25,8 @@ namespace ProjectRac.Player
         private InputAction _sprintAction;
         private InputAction _interactAction;
         private InputAction _attackAction;
+        private InputAction _slot1Action;
+        private InputAction _slot2Action;
 
         private InputActionMap _runtimeMap;
 
@@ -41,6 +45,15 @@ namespace ProjectRac.Player
             DisableActions();
         }
 
+        private void Update()
+        {
+            if (Keyboard.current != null)
+            {
+                if (Keyboard.current[Key.Digit1].wasPressedThisFrame) QuickSlot1Triggered = true;
+                if (Keyboard.current[Key.Digit2].wasPressedThisFrame) QuickSlot2Triggered = true;
+            }
+        }
+
         private void LateUpdate()
         {
             // Reset one-frame triggers
@@ -48,6 +61,8 @@ namespace ProjectRac.Player
             InteractTriggered = false;
             PrimaryActionTriggered = false;
             PrimaryActionReleased = false;
+            QuickSlot1Triggered = false;
+            QuickSlot2Triggered = false;
         }
 
         public void SetActionAsset(InputActionAsset asset)
@@ -71,6 +86,8 @@ namespace ProjectRac.Player
                     _sprintAction = playerMap.FindAction("Sprint");
                     _interactAction = playerMap.FindAction("Interact");
                     _attackAction = playerMap.FindAction("Attack");
+                    _slot1Action = playerMap.FindAction("QuickSlot1");
+                    _slot2Action = playerMap.FindAction("QuickSlot2");
                     RegisterCallbacks();
                     return;
                 }
@@ -100,6 +117,9 @@ namespace ProjectRac.Player
 
             _attackAction = _runtimeMap.AddAction("Attack", binding: "<Mouse>/leftButton");
             _attackAction.AddBinding("<Gamepad>/rightTrigger");
+
+            _slot1Action = _runtimeMap.AddAction("QuickSlot1", binding: "<Keyboard>/1");
+            _slot2Action = _runtimeMap.AddAction("QuickSlot2", binding: "<Keyboard>/2");
 
             RegisterCallbacks();
         }
@@ -147,6 +167,16 @@ namespace ProjectRac.Player
                     PrimaryActionHeld = false;
                     PrimaryActionReleased = true;
                 };
+            }
+
+            if (_slot1Action != null)
+            {
+                _slot1Action.performed += ctx => QuickSlot1Triggered = true;
+            }
+
+            if (_slot2Action != null)
+            {
+                _slot2Action.performed += ctx => QuickSlot2Triggered = true;
             }
         }
 

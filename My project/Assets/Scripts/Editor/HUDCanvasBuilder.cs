@@ -64,6 +64,9 @@ namespace ProjectRac.Editor
             {
                 slingshot.BindChargeHUD(chargeHUD);
             }
+
+            // 4. Weapon Inventory HUD (Slots 1 & 2)
+            WeaponHUDBuilder.BuildWeaponHUD(canvasObj.transform, player);
         }
 
         private static void BuildStaminaHUD(Transform parent, GameObject player)

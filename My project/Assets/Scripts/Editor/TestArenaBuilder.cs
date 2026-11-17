@@ -39,8 +39,11 @@ namespace ProjectRac.Editor
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Beta", new Vector3(-10f, 1f, 8f));
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Gamma", new Vector3(10f, 4f, 18f));
 
-            // 5. Physics Target Stack (Boxes to shoot down with Slingshot)
+            // 5. Physics Target Stack (Boxes to shoot down with Slingshot/Shotgun)
             BuildPhysicsTargetStack(arenaRoot.transform, new Vector3(0f, 0f, 16f));
+
+            // 5b. World Shotgun Pickup (on High Platform)
+            CreateShotgunPickup(arenaRoot.transform, new Vector3(10f, 3.8f, 18f));
 
             // 6. Setup ShootPool
             var projectilePool = SetupShootPool(arenaRoot.transform);
@@ -236,7 +239,40 @@ namespace ProjectRac.Editor
             var slingshot = cameraObj.AddComponent<SlingshotWeapon>();
             slingshot.BindPool(pool);
 
+            var shotgun = cameraObj.AddComponent<ShotgunWeapon>();
+            shotgun.BindReferences(camComponent, inputHandler, cameraObj.GetComponent<FirstPersonCameraLook>());
+
+            var inventory = player.AddComponent<PlayerWeaponInventory>();
+            inventory.BindWeapons(slingshot, shotgun);
+
             return player;
+        }
+
+        private static void CreateShotgunPickup(Transform parent, Vector3 pos)
+        {
+            GameObject pedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pedestal.name = "Shotgun_Pedestal";
+            pedestal.transform.parent = parent;
+            pedestal.transform.position = new Vector3(pos.x, pos.y - 0.2f, pos.z);
+            pedestal.transform.localScale = new Vector3(1.2f, 0.4f, 1.2f);
+
+            var renderer = pedestal.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                var block = new MaterialPropertyBlock();
+                block.SetColor("_BaseColor", new Color(0.2f, 0.25f, 0.35f)); // Deep metallic blue
+                renderer.SetPropertyBlock(block);
+            }
+
+            GameObject pickupObj = new GameObject("ShotgunPickup");
+            pickupObj.transform.parent = parent;
+            pickupObj.transform.position = pos;
+
+            var trigger = pickupObj.AddComponent<SphereCollider>();
+            trigger.isTrigger = true;
+            trigger.radius = 1.2f;
+
+            pickupObj.AddComponent<ShotgunPickup>();
         }
     }
 }

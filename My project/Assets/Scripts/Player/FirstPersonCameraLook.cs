@@ -62,6 +62,12 @@ namespace ProjectRac.Player
             }
         }
 
+        public void AddRecoil(float pitchOffset)
+        {
+            _xRotation = Mathf.Clamp(_xRotation - pitchOffset, minPitch, maxPitch);
+            transform.localRotation = Quaternion.Euler(_xRotation, 0f, 0f);
+        }
+
         private void HandleCursorToggle()
         {
             var keyboard = Keyboard.current;

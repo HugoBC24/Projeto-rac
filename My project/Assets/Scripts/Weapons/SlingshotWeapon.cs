@@ -4,8 +4,19 @@ using ProjectRac.UI;
 
 namespace ProjectRac.Weapons
 {
-    public class SlingshotWeapon : MonoBehaviour
+    public class SlingshotWeapon : MonoBehaviour, IWeapon
     {
+        [Header("Weapon Identity")]
+        [SerializeField] private string weaponName = "Estilingue";
+        [SerializeField] private int slotIndex = 1;
+
+        [Header("3D Model / Viewmodel Customization (Inspector)")]
+        [Tooltip("Drag & drop any custom 3D model/prefab here to replace the slingshot viewmodel!")]
+        [SerializeField] private GameObject customViewmodelPrefab;
+        [SerializeField] private Vector3 viewmodelOffset = new Vector3(0.22f, -0.2f, 0.42f);
+        [SerializeField] private Vector3 viewmodelRotation = new Vector3(0f, 0f, 0f);
+        [SerializeField] private Vector3 viewmodelScale = new Vector3(1f, 1f, 1f);
+
         [Header("References")]
         [SerializeField] private SlingshotProjectilePool projectilePool;
         [SerializeField] private Camera playerCamera;
@@ -22,9 +33,13 @@ namespace ProjectRac.Weapons
         [Header("Spawn Offset (if muzzlePoint is null)")]
         [SerializeField] private Vector3 cameraRelativeOffset = new Vector3(0.2f, -0.15f, 0.4f);
 
+        public string WeaponName => weaponName;
+        public int SlotIndex => slotIndex;
+        public bool IsEquipped { get; private set; } = true;
         public float ChargeNormalized { get; private set; }
         public bool IsCharging { get; private set; }
 
+        private GameObject _viewmodelInstance;
         private float _chargeTimer;
         private float _lastFireTime;
         private Texture2D _chargeTex;
@@ -32,9 +47,42 @@ namespace ProjectRac.Weapons
         private void Awake()
         {
             ResolveReferences();
+            SetupViewmodel();
             _chargeTex = new Texture2D(1, 1);
             _chargeTex.SetPixel(0, 0, Color.white);
             _chargeTex.Apply();
+        }
+
+        private void SetupViewmodel()
+        {
+            Transform parentTransform = playerCamera != null ? playerCamera.transform : transform;
+            if (customViewmodelPrefab != null)
+            {
+                _viewmodelInstance = Instantiate(customViewmodelPrefab, parentTransform);
+                _viewmodelInstance.name = "Slingshot_Viewmodel";
+                _viewmodelInstance.transform.localPosition = viewmodelOffset;
+                _viewmodelInstance.transform.localRotation = Quaternion.Euler(viewmodelRotation);
+                _viewmodelInstance.transform.localScale = viewmodelScale;
+                _viewmodelInstance.SetActive(IsEquipped);
+            }
+        }
+
+        public void Equip()
+        {
+            IsEquipped = true;
+            gameObject.SetActive(true);
+            if (_viewmodelInstance != null) _viewmodelInstance.SetActive(true);
+        }
+
+        public void Unequip()
+        {
+            IsEquipped = false;
+            IsCharging = false;
+            _chargeTimer = 0f;
+            ChargeNormalized = 0f;
+            chargeHUD?.UpdateCharge(false, 0f);
+            if (_viewmodelInstance != null) _viewmodelInstance.SetActive(false);
+            gameObject.SetActive(false);
         }
 
         private void OnDestroy()
@@ -82,7 +130,7 @@ namespace ProjectRac.Weapons
 
         private void Update()
         {
-            if (inputHandler == null || projectilePool == null) return;
+            if (!IsEquipped || inputHandler == null || projectilePool == null) return;
 
             HandleChargeAndShoot();
         }

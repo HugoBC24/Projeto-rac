@@ -19,6 +19,10 @@ namespace ProjectRac.Weapons
         [SerializeField] private Vector3 viewmodelRotation = new Vector3(0f, 0f, 0f);
         [SerializeField] private Vector3 viewmodelScale = new Vector3(1f, 1f, 1f);
 
+        [Header("Shoot Point (Inspector)")]
+        [Tooltip("The exact muzzle/spawn transform where shotgun pellets originate.")]
+        [SerializeField] private Transform shootPoint;
+
         [Header("Ammo & Reload Settings (Inspector)")]
         [SerializeField] private int maxAmmo = 6;
         [SerializeField] private int currentAmmo = 6;
@@ -27,7 +31,7 @@ namespace ProjectRac.Weapons
 
         [Header("Shotgun Ballistics")]
         [SerializeField] private int pelletsCount = 8;
-        [SerializeField] private float spreadAngle = 4.2f;
+        [SerializeField] private float spreadAngle = 4.0f;
         [SerializeField] private float fireCooldown = 0.75f;
 
         [Header("Audio & Visual Feedback")]
@@ -44,6 +48,7 @@ namespace ProjectRac.Weapons
         public int CurrentAmmo => currentAmmo;
         public int MaxAmmo => maxAmmo;
         public bool IsReloading => _isReloading;
+        public Transform ShootPoint => shootPoint;
 
         private Camera _playerCamera;
         private PlayerInputHandler _inputHandler;
@@ -65,6 +70,11 @@ namespace ProjectRac.Weapons
             _inputHandler = input;
             if (pool != null) pelletPool = pool;
             if (hud != null) ammoHUD = hud;
+        }
+
+        public void SetShootPoint(Transform sp)
+        {
+            shootPoint = sp;
         }
 
         public void BindAmmoHUD(AmmoHUD hud)
@@ -211,19 +221,40 @@ namespace ProjectRac.Weapons
             RefreshHUD();
 
             Transform rootTransform = transform.root;
-            Vector3 camPos = _playerCamera.transform.position;
-            Vector3 forward = _playerCamera.transform.forward;
-            Vector3 muzzlePos = camPos + _playerCamera.transform.right * 0.22f + _playerCamera.transform.up * -0.18f + forward * 0.45f;
 
+            // 1. Raycast to find target point where crosshair aims
+            Ray aimRay = _playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            Vector3 targetPoint = aimRay.GetPoint(80f);
+
+            RaycastHit[] hits = Physics.RaycastAll(aimRay, 80f, ~0, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            for (int i = 0; i < hits.Length; i++)
+            {
+                if (hits[i].transform != rootTransform && !hits[i].transform.IsChildOf(rootTransform) && !hits[i].collider.CompareTag("Player"))
+                {
+                    targetPoint = hits[i].point;
+                    break;
+                }
+            }
+
+            // 2. Muzzle spawn origin
+            Vector3 spawnOrigin = shootPoint != null
+                ? shootPoint.position
+                : _playerCamera.transform.position + _playerCamera.transform.right * 0.22f + _playerCamera.transform.up * -0.18f + _playerCamera.transform.forward * 0.55f;
+
+            Vector3 baseDir = (targetPoint - spawnOrigin).normalized;
+            if (baseDir == Vector3.zero) baseDir = _playerCamera.transform.forward;
+
+            // 3. Spawn 8 distinct pellets in a conical spread
             for (int i = 0; i < pelletsCount; i++)
             {
                 float spreadX = Random.Range(-spreadAngle, spreadAngle);
                 float spreadY = Random.Range(-spreadAngle, spreadAngle);
-                Vector3 shootDir = Quaternion.Euler(spreadX, spreadY, 0f) * forward;
+                Vector3 shootDir = Quaternion.Euler(spreadX, spreadY, 0f) * baseDir;
 
                 if (pelletPool != null)
                 {
-                    pelletPool.SpawnPellet(muzzlePos, shootDir, rootTransform);
+                    pelletPool.SpawnPellet(spawnOrigin, shootDir, rootTransform);
                 }
             }
 

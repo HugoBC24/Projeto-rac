@@ -172,7 +172,7 @@ namespace ProjectRac.Editor
             GameObject shotObj = new GameObject("ShotgunPool");
             shotObj.transform.parent = poolsRoot.transform;
             var shotPool = shotObj.AddComponent<ShotgunPelletPool>();
-            shotPool.Configure(null, 45);
+            shotPool.Configure(null, 48);
 
             return (slingPool, shotPool);
         }
@@ -192,6 +192,7 @@ namespace ProjectRac.Editor
             if (player != null) Undo.DestroyObjectImmediate(player);
 
             player = new GameObject("Player");
+            player.tag = "Player";
             Undo.RegisterCreatedObjectUndo(player, "Create Player");
             player.transform.position = new Vector3(0f, 0.1f, 0f);
 
@@ -250,11 +251,18 @@ namespace ProjectRac.Editor
             slingshot.SetCustomViewmodelPrefab(slingshotPrefab);
             slingshot.BindPool(slingPool);
 
-            // Shotgun Weapon
+            // Shotgun Weapon with Dedicated ShootPoint
             GameObject shotObj = new GameObject("Shotgun");
             shotObj.transform.parent = weaponsRoot.transform;
             shotObj.transform.localPosition = Vector3.zero;
             var shotgun = shotObj.AddComponent<ShotgunWeapon>();
+
+            GameObject shootPointObj = new GameObject("ShootPoint");
+            shootPointObj.transform.parent = shotObj.transform;
+            shootPointObj.transform.localPosition = new Vector3(0.24f, -0.22f, 0.85f);
+            shootPointObj.transform.localRotation = Quaternion.identity;
+
+            shotgun.SetShootPoint(shootPointObj.transform);
             shotgun.BindReferences(camComponent, inputHandler, shotPool);
 
             // Inventory

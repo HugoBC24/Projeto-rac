@@ -7,9 +7,10 @@ namespace ProjectRac.Weapons
     {
         [Header("Pool Configuration")]
         [SerializeField] private GameObject pelletPrefab;
-        [SerializeField] private int initialPoolSize = 40;
+        [SerializeField] private int initialPoolSize = 48;
 
         private readonly Queue<ShotgunPellet> _availableQueue = new Queue<ShotgunPellet>();
+        private readonly List<ShotgunPellet> _allPellets = new List<ShotgunPellet>();
         private Transform _poolRoot;
 
         private void Awake()
@@ -17,7 +18,7 @@ namespace ProjectRac.Weapons
             InitializePool();
         }
 
-        public void Configure(GameObject prefab, int size = 40)
+        public void Configure(GameObject prefab, int size = 48)
         {
             pelletPrefab = prefab;
             initialPoolSize = size;
@@ -30,6 +31,22 @@ namespace ProjectRac.Weapons
             for (int i = 0; i < initialPoolSize; i++)
             {
                 CreateNewPooledInstance();
+            }
+
+            // Guarantee mutual collision immunity between all pellets in the pool
+            for (int i = 0; i < _allPellets.Count; i++)
+            {
+                var colA = _allPellets[i].PelletCollider;
+                if (colA == null) continue;
+
+                for (int j = i + 1; j < _allPellets.Count; j++)
+                {
+                    var colB = _allPellets[j].PelletCollider;
+                    if (colB != null)
+                    {
+                        Physics.IgnoreCollision(colA, colB, true);
+                    }
+                }
             }
         }
 
@@ -52,6 +69,7 @@ namespace ProjectRac.Weapons
             }
 
             instanceObj.SetActive(false);
+            _allPellets.Add(pellet);
             _availableQueue.Enqueue(pellet);
             return pellet;
         }
@@ -79,30 +97,30 @@ namespace ProjectRac.Weapons
             GameObject pellet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             pellet.name = "ShotgunPellet";
             pellet.transform.SetParent(parent);
-            pellet.transform.localScale = new Vector3(0.08f, 0.08f, 0.08f);
+            pellet.transform.localScale = new Vector3(0.09f, 0.09f, 0.09f);
 
             var rb = pellet.GetComponent<Rigidbody>();
             if (rb == null) rb = pellet.AddComponent<Rigidbody>();
             rb.mass = 0.08f;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            rb.useGravity = false;
 
             var renderer = pellet.GetComponent<Renderer>();
             if (renderer != null)
             {
                 var block = new MaterialPropertyBlock();
                 renderer.GetPropertyBlock(block);
-                // Glowing golden-orange lead pellet color
-                block.SetColor("_BaseColor", new Color(1f, 0.72f, 0.2f));
-                block.SetColor("_EmissionColor", new Color(0.8f, 0.45f, 0.1f));
+                block.SetColor("_BaseColor", new Color(1f, 0.75f, 0.25f));
+                block.SetColor("_EmissionColor", new Color(1f, 0.5f, 0.1f));
                 renderer.SetPropertyBlock(block);
             }
 
             var trail = pellet.AddComponent<TrailRenderer>();
-            trail.time = 0.08f;
-            trail.startWidth = 0.05f;
+            trail.time = 0.12f;
+            trail.startWidth = 0.06f;
             trail.endWidth = 0.01f;
-            trail.startColor = new Color(1f, 0.8f, 0.3f, 0.8f);
-            trail.endColor = new Color(1f, 0.4f, 0.1f, 0f);
+            trail.startColor = new Color(1f, 0.85f, 0.35f, 0.95f);
+            trail.endColor = new Color(1f, 0.45f, 0.1f, 0f);
             trail.material = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
 
             pellet.AddComponent<ShotgunPellet>();

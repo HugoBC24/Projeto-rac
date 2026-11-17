@@ -23,6 +23,7 @@ namespace ProjectRac.Weapons
         [SerializeField] private PlayerInputHandler inputHandler;
         [SerializeField] private Transform muzzlePoint;
         [SerializeField] private AmmoHUD ammoHUD;
+        [SerializeField] private SlingshotChargeHUD chargeHUD;
 
         [Header("Launch Force & Charge Settings")]
         [SerializeField] private float minLaunchForce = 22f;
@@ -79,6 +80,7 @@ namespace ProjectRac.Weapons
             IsCharging = false;
             _chargeTimer = 0f;
             ChargeNormalized = 0f;
+            chargeHUD?.UpdateCharge(false, 0f);
             if (_viewmodelInstance != null) _viewmodelInstance.SetActive(false);
         }
 
@@ -91,6 +93,11 @@ namespace ProjectRac.Weapons
         {
             ammoHUD = hud;
             if (IsEquipped) RefreshHUD();
+        }
+
+        public void BindChargeHUD(SlingshotChargeHUD hud)
+        {
+            chargeHUD = hud;
         }
 
         public void SetCustomViewmodelPrefab(GameObject prefab)
@@ -122,6 +129,11 @@ namespace ProjectRac.Weapons
                 ammoHUD = FindAnyObjectByType<AmmoHUD>();
             }
 
+            if (chargeHUD == null)
+            {
+                chargeHUD = FindAnyObjectByType<SlingshotChargeHUD>();
+            }
+
             _audioSource = GetComponent<AudioSource>();
             if (_audioSource == null)
             {
@@ -140,12 +152,12 @@ namespace ProjectRac.Weapons
 
         private void HandleChargeAndShoot()
         {
-            // Clean charge logic: No viewmodel pull or deformation animation
             if (inputHandler.PrimaryActionHeld && Time.time >= _lastFireTime + fireCooldown)
             {
                 IsCharging = true;
                 _chargeTimer += Time.deltaTime;
                 ChargeNormalized = Mathf.Clamp01(_chargeTimer / maxChargeTime);
+                chargeHUD?.UpdateCharge(true, ChargeNormalized);
             }
 
             if (inputHandler.PrimaryActionReleased && IsCharging)
@@ -154,6 +166,7 @@ namespace ProjectRac.Weapons
                 IsCharging = false;
                 _chargeTimer = 0f;
                 ChargeNormalized = 0f;
+                chargeHUD?.UpdateCharge(false, 0f);
             }
         }
 
@@ -203,7 +216,6 @@ namespace ProjectRac.Weapons
         {
             if (ammoHUD != null && IsEquipped)
             {
-                // -1 represents infinite ammo (displaying ∞)
                 ammoHUD.UpdateAmmo(weaponName, 1, -1, false);
             }
         }

@@ -8,9 +8,11 @@ namespace ProjectRac.Weapons
     public class ShotgunPellet : MonoBehaviour
     {
         [Header("Pellet Settings")]
-        [SerializeField] private float speed = 95f;
+        [SerializeField] private float speed = 105f;
         [SerializeField] private float impulseForce = 5.5f;
-        [SerializeField] private float maxLifetime = 1.8f;
+        [SerializeField] private float maxLifetime = 2.0f;
+
+        public Collider PelletCollider => _collider != null ? _collider : GetComponent<Collider>();
 
         private Rigidbody _rigidbody;
         private Collider _collider;
@@ -25,7 +27,7 @@ namespace ProjectRac.Weapons
             _rigidbody = GetComponent<Rigidbody>();
             _collider = GetComponent<Collider>();
             _rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            _rigidbody.useGravity = true;
+            _rigidbody.useGravity = false;
             _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         }
 
@@ -52,8 +54,11 @@ namespace ProjectRac.Weapons
 
             _pool = pool;
             _owner = owner;
+
             transform.position = origin;
             transform.forward = direction;
+            _rigidbody.position = origin;
+            _rigidbody.rotation = Quaternion.LookRotation(direction);
 
             if (_owner != null && _collider != null)
             {
@@ -80,22 +85,31 @@ namespace ProjectRac.Weapons
         {
             if (!_isFlying) return;
 
+            // 1. Ignore collision with other pellets!
+            if (collision.gameObject.GetComponent<ShotgunPellet>() != null)
+            {
+                return;
+            }
+
+            // 2. Ignore collision with the shooter/player
             if (_owner != null && (collision.transform == _owner || collision.transform.IsChildOf(_owner)))
             {
                 return;
             }
 
-            if (collision.gameObject.CompareTag("Player"))
+            if (collision.gameObject.CompareTag("Player") || collision.collider is CharacterController)
             {
                 return;
             }
 
+            // 3. Apply physics impulse
             if (collision.rigidbody != null)
             {
                 Vector3 hitPoint = collision.contactCount > 0 ? collision.contacts[0].point : transform.position;
                 collision.rigidbody.AddForceAtPosition(_currentVelocity.normalized * impulseForce, hitPoint, ForceMode.Impulse);
             }
 
+            // 4. Trigger interactable target
             var interactable = collision.collider.GetComponentInParent<IInteractable>();
             if (interactable != null)
             {

@@ -51,7 +51,6 @@ namespace ProjectRac.Weapons
             _owner = owner;
             transform.position = origin;
 
-            // Ignore collisions with the shooter/player
             if (_owner != null && _collider != null)
             {
                 var ownerColliders = _owner.GetComponentsInChildren<Collider>();
@@ -77,7 +76,6 @@ namespace ProjectRac.Weapons
         {
             if (!_isLaunched) return;
 
-            // Never collide with the shooter / player body
             if (_owner != null && (collision.transform == _owner || collision.transform.IsChildOf(_owner)))
             {
                 return;
@@ -96,14 +94,13 @@ namespace ProjectRac.Weapons
                 collision.rigidbody.AddForceAtPosition(impulse, hitPoint, ForceMode.Impulse);
             }
 
-            // Trigger interactables if target implements IInteractable
+            // Trigger interactables if target implements IInteractable (Never weapon pickups!)
             var interactable = collision.collider.GetComponentInParent<IInteractable>();
-            if (interactable != null)
+            if (interactable != null && collision.collider.GetComponentInParent<ShotgunPickup>() == null)
             {
                 interactable.Interact();
             }
 
-            // Immediately destroy/recycle stone on valid collision
             Recycle();
         }
 

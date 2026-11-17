@@ -31,7 +31,7 @@ namespace ProjectRac.Editor
             // 2. Main Floor & Walls
             BuildFloorAndWalls(arenaRoot.transform);
 
-            // 3. Platforms & Ramp
+            // 3. Platforms & Ramp (Preserved Exactly)
             BuildPlatformsAndRamp(arenaRoot.transform);
 
             // 4. Interactive Test Objects
@@ -42,8 +42,8 @@ namespace ProjectRac.Editor
             // 5. Physics Target Stack (Boxes)
             BuildPhysicsTargetStack(arenaRoot.transform, new Vector3(0f, 0f, 16f));
 
-            // 5b. World Shotgun Pickup (Static on High Platform)
-            CreateShotgunPickup(arenaRoot.transform, new Vector3(10f, 3.8f, 18f));
+            // 5b. World Shotgun Pickup (Clearly Visible on High Platform Pedestal)
+            CreateShotgunPickup(arenaRoot.transform, new Vector3(10f, 4.02f, 18f));
 
             // 6. Setup Shoot Pools (Slingshot + Shotgun)
             var (slingshotPool, pelletPool) = SetupShootPools(arenaRoot.transform);
@@ -239,7 +239,6 @@ namespace ProjectRac.Editor
             weaponsRoot.transform.localPosition = Vector3.zero;
             weaponsRoot.transform.localRotation = Quaternion.identity;
 
-            // Load/Generate Slingshot Prefab
             var slingshotPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SlingshotPrefabGenerator.PrefabPath)
                                   ?? SlingshotPrefabGenerator.GeneratePrefab();
 
@@ -272,32 +271,35 @@ namespace ProjectRac.Editor
             return player;
         }
 
-        private static void CreateShotgunPickup(Transform parent, Vector3 pos)
+        private static void CreateShotgunPickup(Transform parent, Vector3 pickupPos)
         {
+            // Pedestal: Base flush on Platform_High (3.50m), top at 4.00m
             GameObject pedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             pedestal.name = "Shotgun_Pedestal";
             pedestal.transform.parent = parent;
-            pedestal.transform.position = new Vector3(pos.x, pos.y - 0.2f, pos.z);
-            pedestal.transform.localScale = new Vector3(1.2f, 0.4f, 1.2f);
+            pedestal.transform.position = new Vector3(pickupPos.x, 3.75f, pickupPos.z);
+            pedestal.transform.localScale = new Vector3(1.1f, 0.25f, 1.1f);
 
             var renderer = pedestal.GetComponent<Renderer>();
             if (renderer != null)
             {
                 var block = new MaterialPropertyBlock();
-                block.SetColor("_BaseColor", new Color(0.2f, 0.25f, 0.35f));
+                block.SetColor("_BaseColor", new Color(0.2f, 0.28f, 0.45f)); // Deep metallic blue
                 renderer.SetPropertyBlock(block);
             }
 
+            // Shotgun Pickup: positioned resting right on top of the pedestal
             GameObject pickupObj = new GameObject("ShotgunPickup");
             pickupObj.transform.parent = parent;
-            pickupObj.transform.position = pos;
+            pickupObj.transform.position = pickupPos; // (10f, 4.02f, 18f)
 
             var boxCol = pickupObj.AddComponent<BoxCollider>();
             boxCol.isTrigger = false;
-            boxCol.size = new Vector3(0.5f, 0.4f, 1.1f);
+            boxCol.size = new Vector3(0.55f, 0.35f, 1.05f);
             boxCol.center = new Vector3(0f, 0.12f, 0f);
 
-            pickupObj.AddComponent<ShotgunPickup>();
+            var pickup = pickupObj.AddComponent<ShotgunPickup>();
+            pickup.ResolveWorldModel();
         }
     }
 }

@@ -9,7 +9,7 @@ namespace ProjectRac.Weapons
         [Header("3D Model Customization (Inspector)")]
         [Tooltip("Drag & drop any custom 3D model/prefab here to replace the world pickup model!")]
         [SerializeField] private GameObject customWorldModelPrefab;
-        [SerializeField] private Vector3 modelOffset = new Vector3(0f, 0.08f, 0f);
+        [SerializeField] private Vector3 modelOffset = new Vector3(0f, 0.05f, 0f);
         [SerializeField] private Vector3 modelRotation = new Vector3(0f, 35f, 0f);
         [SerializeField] private Vector3 modelScale = new Vector3(1f, 1f, 1f);
 
@@ -22,7 +22,7 @@ namespace ProjectRac.Weapons
         private void Awake()
         {
             EnsureSolidCollider();
-            SetupWorldModel();
+            ResolveWorldModel();
         }
 
         private void EnsureSolidCollider()
@@ -35,14 +35,24 @@ namespace ProjectRac.Weapons
             else
             {
                 var box = gameObject.AddComponent<BoxCollider>();
-                box.size = new Vector3(0.45f, 0.35f, 0.95f);
-                box.center = new Vector3(0f, 0.15f, 0f);
+                box.size = new Vector3(0.55f, 0.35f, 1.05f);
+                box.center = new Vector3(0f, 0.12f, 0f);
                 box.isTrigger = false;
             }
         }
 
-        private void SetupWorldModel()
+        public void ResolveWorldModel()
         {
+            var existingChild = transform.Find("Shotgun_WorldModel");
+            if (existingChild != null)
+            {
+                _modelInstance = existingChild.gameObject;
+                _modelInstance.transform.localPosition = modelOffset;
+                _modelInstance.transform.localRotation = Quaternion.Euler(modelRotation);
+                _modelInstance.transform.localScale = modelScale;
+                return;
+            }
+
             if (customWorldModelPrefab != null)
             {
                 _modelInstance = Instantiate(customWorldModelPrefab, transform);

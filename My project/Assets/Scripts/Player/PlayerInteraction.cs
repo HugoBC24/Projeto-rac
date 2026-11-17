@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using ProjectRac.Interaction;
 using ProjectRac.UI;
 
@@ -7,7 +8,7 @@ namespace ProjectRac.Player
     public class PlayerInteraction : MonoBehaviour
     {
         [Header("Settings")]
-        [SerializeField] private float interactionDistance = 3.0f;
+        [SerializeField] private float interactionDistance = 3.5f;
         [SerializeField] private LayerMask interactableLayers = ~0;
         [SerializeField] private Camera playerCamera;
         [SerializeField] private PlayerInputHandler inputHandler;
@@ -75,7 +76,12 @@ namespace ProjectRac.Player
 
         private void HandleInteraction()
         {
-            if (_currentInteractable != null && inputHandler != null && inputHandler.InteractTriggered)
+            // Strictly check key 'E' for interaction — Never mouse clicks!
+            var kb = Keyboard.current;
+            bool ePressed = (kb != null && kb[Key.E].wasPressedThisFrame)
+                         || (inputHandler != null && inputHandler.InteractTriggered);
+
+            if (_currentInteractable != null && ePressed)
             {
                 _currentInteractable.Interact();
             }
@@ -83,7 +89,6 @@ namespace ProjectRac.Player
 
         private void OnGUI()
         {
-            // If uGUI Crosshair is active, suppress legacy OnGUI to prevent duplicate reticles
             if (crosshairHUD != null || !showCrosshairAndPrompt || Cursor.lockState != CursorLockMode.Locked) return;
 
             float centerX = Screen.width / 2f;
@@ -98,11 +103,11 @@ namespace ProjectRac.Player
                 GUIStyle style = new GUIStyle(GUI.skin.label)
                 {
                     alignment = TextAnchor.MiddleCenter,
-                    fontSize = 16,
+                    fontSize = 14,
                     fontStyle = FontStyle.Bold
                 };
                 style.normal.textColor = Color.white;
-                GUI.Label(new Rect(centerX - 150f, centerY + 30f, 300f, 30f), _currentPrompt, style);
+                GUI.Label(new Rect(centerX - 100f, centerY + 18f, 200f, 25f), _currentPrompt, style);
             }
         }
     }

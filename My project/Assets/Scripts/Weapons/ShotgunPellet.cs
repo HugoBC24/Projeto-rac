@@ -109,9 +109,9 @@ namespace ProjectRac.Weapons
                 collision.rigidbody.AddForceAtPosition(_currentVelocity.normalized * impulseForce, hitPoint, ForceMode.Impulse);
             }
 
-            // 4. Trigger interactable target
+            // 4. Trigger interactable target (Never weapon pickups!)
             var interactable = collision.collider.GetComponentInParent<IInteractable>();
-            if (interactable != null)
+            if (interactable != null && collision.collider.GetComponentInParent<ShotgunPickup>() == null)
             {
                 interactable.Interact();
             }

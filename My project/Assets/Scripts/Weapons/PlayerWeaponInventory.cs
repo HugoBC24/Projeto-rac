@@ -1,5 +1,5 @@
 using UnityEngine;
-using ProjectRac.Player;
+using UnityEngine.InputSystem;
 using ProjectRac.UI;
 
 namespace ProjectRac.Weapons
@@ -15,13 +15,11 @@ namespace ProjectRac.Weapons
         [SerializeField] private int activeSlot = 1;
 
         [Header("UI Reference")]
-        [SerializeField] private WeaponHUD weaponHUD;
+        [SerializeField] private AmmoHUD ammoHUD;
 
         public bool HasShotgun => hasShotgun;
         public int ActiveSlot => activeSlot;
         public IWeapon CurrentWeapon => activeSlot == 2 ? (IWeapon)shotgunWeapon : (IWeapon)slingshotWeapon;
-
-        private PlayerInputHandler _inputHandler;
 
         private void Awake()
         {
@@ -30,33 +28,27 @@ namespace ProjectRac.Weapons
 
         private void Start()
         {
-            // Initialize with default Slot 1 (Slingshot)
             SelectSlot(activeSlot, force: true);
         }
 
-        public void BindWeapons(SlingshotWeapon slingshot, ShotgunWeapon shotgun, WeaponHUD hud = null)
+        public void BindWeapons(SlingshotWeapon slingshot, ShotgunWeapon shotgun, AmmoHUD hud = null)
         {
             slingshotWeapon = slingshot;
             shotgunWeapon = shotgun;
-            if (hud != null) weaponHUD = hud;
+            if (hud != null) ammoHUD = hud;
 
             SelectSlot(activeSlot, force: true);
         }
 
-        public void BindWeaponHUD(WeaponHUD hud)
+        public void BindAmmoHUD(AmmoHUD hud)
         {
-            weaponHUD = hud;
-            weaponHUD?.UpdateActiveSlot(activeSlot, hasShotgun);
+            ammoHUD = hud;
+            if (slingshotWeapon != null) slingshotWeapon.BindAmmoHUD(hud);
+            if (shotgunWeapon != null) shotgunWeapon.BindAmmoHUD(hud);
         }
 
         private void ResolveReferences()
         {
-            if (_inputHandler == null)
-            {
-                _inputHandler = GetComponent<PlayerInputHandler>();
-                if (_inputHandler == null) _inputHandler = GetComponentInParent<PlayerInputHandler>();
-            }
-
             if (slingshotWeapon == null)
             {
                 slingshotWeapon = GetComponentInChildren<SlingshotWeapon>(true);
@@ -67,23 +59,47 @@ namespace ProjectRac.Weapons
                 shotgunWeapon = GetComponentInChildren<ShotgunWeapon>(true);
             }
 
-            if (weaponHUD == null)
+            if (ammoHUD == null)
             {
-                weaponHUD = FindAnyObjectByType<WeaponHUD>();
+                ammoHUD = FindAnyObjectByType<AmmoHUD>();
             }
         }
 
         private void Update()
         {
-            if (_inputHandler == null) return;
+            HandleWeaponSwitchInput();
+        }
 
-            if (_inputHandler.QuickSlot1Triggered && activeSlot != 1)
+        private void HandleWeaponSwitchInput()
+        {
+            var kb = Keyboard.current;
+            if (kb != null)
             {
-                SelectSlot(1);
+                if ((kb[Key.Digit1].wasPressedThisFrame || kb[Key.Numpad1].wasPressedThisFrame) && activeSlot != 1)
+                {
+                    SelectSlot(1);
+                    return;
+                }
+
+                if ((kb[Key.Digit2].wasPressedThisFrame || kb[Key.Numpad2].wasPressedThisFrame) && activeSlot != 2)
+                {
+                    SelectSlot(2);
+                    return;
+                }
             }
-            else if (_inputHandler.QuickSlot2Triggered && activeSlot != 2)
+
+            var mouse = Mouse.current;
+            if (mouse != null)
             {
-                SelectSlot(2);
+                float scroll = mouse.scroll.ReadValue().y;
+                if (scroll > 0.1f && activeSlot != 1)
+                {
+                    SelectSlot(1);
+                }
+                else if (scroll < -0.1f && activeSlot != 2 && hasShotgun)
+                {
+                    SelectSlot(2);
+                }
             }
         }
 
@@ -93,8 +109,6 @@ namespace ProjectRac.Weapons
 
             if (slot == 2 && !hasShotgun)
             {
-                // Shotgun not yet acquired
-                weaponHUD?.FlashLockedSlot(2);
                 return;
             }
 
@@ -110,8 +124,6 @@ namespace ProjectRac.Weapons
                 slingshotWeapon?.Unequip();
                 shotgunWeapon?.Equip();
             }
-
-            weaponHUD?.UpdateActiveSlot(activeSlot, hasShotgun);
         }
 
         public void UnlockShotgun(bool autoEquip = true)
@@ -121,10 +133,6 @@ namespace ProjectRac.Weapons
             if (autoEquip)
             {
                 SelectSlot(2);
-            }
-            else
-            {
-                weaponHUD?.UpdateActiveSlot(activeSlot, hasShotgun);
             }
         }
     }

@@ -31,7 +31,7 @@ namespace ProjectRac.Editor
             // 2. Main Floor & Walls
             BuildFloorAndWalls(arenaRoot.transform);
 
-            // 3. Platforms & Ramp for jump/slope testing
+            // 3. Platforms & Ramp
             BuildPlatformsAndRamp(arenaRoot.transform);
 
             // 4. Interactive Test Objects
@@ -39,19 +39,19 @@ namespace ProjectRac.Editor
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Beta", new Vector3(-10f, 1f, 8f));
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Gamma", new Vector3(10f, 4f, 18f));
 
-            // 5. Physics Target Stack (Boxes to shoot down with Slingshot/Shotgun)
+            // 5. Physics Target Stack (Boxes)
             BuildPhysicsTargetStack(arenaRoot.transform, new Vector3(0f, 0f, 16f));
 
-            // 5b. World Shotgun Pickup (on High Platform)
+            // 5b. World Shotgun Pickup (Static on High Platform)
             CreateShotgunPickup(arenaRoot.transform, new Vector3(10f, 3.8f, 18f));
 
-            // 6. Setup ShootPool
-            var projectilePool = SetupShootPool(arenaRoot.transform);
+            // 6. Setup Shoot Pools (Slingshot + Shotgun)
+            var (slingshotPool, pelletPool) = SetupShootPools(arenaRoot.transform);
 
-            // 7. Setup Player with Slingshot
-            GameObject player = SetupPlayer(projectilePool);
+            // 7. Setup Player with dedicated weapons & prefab
+            GameObject player = SetupPlayer(slingshotPool, pelletPool);
 
-            // 8. Setup Responsive uGUI Canvas & Stamina HUD
+            // 8. Setup Responsive uGUI Canvas & Ammo HUD
             HUDCanvasBuilder.SetupHUDCanvas(player);
 
             // Mark Scene Dirty and Save
@@ -59,7 +59,7 @@ namespace ProjectRac.Editor
             EditorSceneManager.SaveScene(activeScene);
 
             Undo.CollapseUndoOperations(undoGroup);
-            Debug.Log("[TestArenaBuilder] Arena de Teste FPAA configurada com Estilingue e ShootPool! Pressione PLAY para testar.");
+            Debug.Log("[TestArenaBuilder] Arena de Teste FPAA configurada com sucesso na SampleScene!");
         }
 
         private static void BuildFloorAndWalls(Transform root)
@@ -104,16 +104,11 @@ namespace ProjectRac.Editor
             stackRoot.transform.parent = root;
             stackRoot.transform.position = centerPos;
 
-            // Base row (3 boxes)
             CreatePhysicsBox(stackRoot.transform, new Vector3(-1.1f, 0.5f, 0f));
             CreatePhysicsBox(stackRoot.transform, new Vector3(0f, 0.5f, 0f));
             CreatePhysicsBox(stackRoot.transform, new Vector3(1.1f, 0.5f, 0f));
-
-            // Middle row (2 boxes)
             CreatePhysicsBox(stackRoot.transform, new Vector3(-0.55f, 1.5f, 0f));
             CreatePhysicsBox(stackRoot.transform, new Vector3(0.55f, 1.5f, 0f));
-
-            // Top box (1 box)
             CreatePhysicsBox(stackRoot.transform, new Vector3(0f, 2.5f, 0f));
         }
 
@@ -134,7 +129,7 @@ namespace ProjectRac.Editor
             {
                 var block = new MaterialPropertyBlock();
                 renderer.GetPropertyBlock(block);
-                block.SetColor("_BaseColor", new Color(0.75f, 0.55f, 0.32f)); // Wood color
+                block.SetColor("_BaseColor", new Color(0.75f, 0.55f, 0.32f));
                 renderer.SetPropertyBlock(block);
             }
         }
@@ -164,16 +159,25 @@ namespace ProjectRac.Editor
             interactable.AddComponent<InteractableTestObject>();
         }
 
-        private static SlingshotProjectilePool SetupShootPool(Transform root)
+        private static (SlingshotProjectilePool, ShotgunPelletPool) SetupShootPools(Transform root)
         {
-            GameObject poolObj = new GameObject("SlingshotPool");
-            poolObj.transform.parent = root;
-            var pool = poolObj.AddComponent<SlingshotProjectilePool>();
-            pool.Configure(null, 25);
-            return pool;
+            GameObject poolsRoot = new GameObject("ShootPools");
+            poolsRoot.transform.parent = root;
+
+            GameObject slingObj = new GameObject("SlingshotPool");
+            slingObj.transform.parent = poolsRoot.transform;
+            var slingPool = slingObj.AddComponent<SlingshotProjectilePool>();
+            slingPool.Configure(null, 25);
+
+            GameObject shotObj = new GameObject("ShotgunPool");
+            shotObj.transform.parent = poolsRoot.transform;
+            var shotPool = shotObj.AddComponent<ShotgunPelletPool>();
+            shotPool.Configure(null, 45);
+
+            return (slingPool, shotPool);
         }
 
-        private static GameObject SetupPlayer(SlingshotProjectilePool pool)
+        private static GameObject SetupPlayer(SlingshotProjectilePool slingPool, ShotgunPelletPool shotPool)
         {
             var existingCams = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include);
             foreach (var cam in existingCams)
@@ -185,10 +189,7 @@ namespace ProjectRac.Editor
             }
 
             GameObject player = GameObject.Find("Player");
-            if (player != null)
-            {
-                Undo.DestroyObjectImmediate(player);
-            }
+            if (player != null) Undo.DestroyObjectImmediate(player);
 
             player = new GameObject("Player");
             Undo.RegisterCreatedObjectUndo(player, "Create Player");
@@ -202,7 +203,6 @@ namespace ProjectRac.Editor
             charController.slopeLimit = 45f;
 
             var inputHandler = player.AddComponent<PlayerInputHandler>();
-
             var actionAsset = AssetDatabase.LoadAssetAtPath<InputActionAsset>("Assets/Settings/InputSystem_Actions.inputactions");
             if (actionAsset != null)
             {
@@ -217,7 +217,7 @@ namespace ProjectRac.Editor
             player.AddComponent<PlayerInteraction>();
             player.AddComponent<StaminaExhaustionPostProcess>();
 
-            // Setup Camera & Slingshot Weapon
+            // Setup Camera
             GameObject cameraObj = new GameObject("FirstPersonCamera");
             cameraObj.transform.parent = player.transform;
             cameraObj.transform.localPosition = new Vector3(0f, 1.7f, 0f);
@@ -229,19 +229,35 @@ namespace ProjectRac.Editor
             cameraObj.AddComponent<AudioListener>();
             cameraObj.AddComponent<FirstPersonCameraLook>();
 
-            var camData = cameraObj.GetComponent<UniversalAdditionalCameraData>();
-            if (camData == null)
-            {
-                camData = cameraObj.AddComponent<UniversalAdditionalCameraData>();
-            }
+            var camData = cameraObj.GetComponent<UniversalAdditionalCameraData>() ?? cameraObj.AddComponent<UniversalAdditionalCameraData>();
             camData.renderPostProcessing = true;
 
-            var slingshot = cameraObj.AddComponent<SlingshotWeapon>();
-            slingshot.BindPool(pool);
+            // Setup Dedicated Weapons Container
+            GameObject weaponsRoot = new GameObject("Weapons");
+            weaponsRoot.transform.parent = cameraObj.transform;
+            weaponsRoot.transform.localPosition = Vector3.zero;
+            weaponsRoot.transform.localRotation = Quaternion.identity;
 
-            var shotgun = cameraObj.AddComponent<ShotgunWeapon>();
-            shotgun.BindReferences(camComponent, inputHandler, cameraObj.GetComponent<FirstPersonCameraLook>());
+            // Load/Generate Slingshot Prefab
+            var slingshotPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SlingshotPrefabGenerator.PrefabPath)
+                                  ?? SlingshotPrefabGenerator.GeneratePrefab();
 
+            // Slingshot Weapon
+            GameObject slingObj = new GameObject("Slingshot");
+            slingObj.transform.parent = weaponsRoot.transform;
+            slingObj.transform.localPosition = Vector3.zero;
+            var slingshot = slingObj.AddComponent<SlingshotWeapon>();
+            slingshot.SetCustomViewmodelPrefab(slingshotPrefab);
+            slingshot.BindPool(slingPool);
+
+            // Shotgun Weapon
+            GameObject shotObj = new GameObject("Shotgun");
+            shotObj.transform.parent = weaponsRoot.transform;
+            shotObj.transform.localPosition = Vector3.zero;
+            var shotgun = shotObj.AddComponent<ShotgunWeapon>();
+            shotgun.BindReferences(camComponent, inputHandler, shotPool);
+
+            // Inventory
             var inventory = player.AddComponent<PlayerWeaponInventory>();
             inventory.BindWeapons(slingshot, shotgun);
 
@@ -260,7 +276,7 @@ namespace ProjectRac.Editor
             if (renderer != null)
             {
                 var block = new MaterialPropertyBlock();
-                block.SetColor("_BaseColor", new Color(0.2f, 0.25f, 0.35f)); // Deep metallic blue
+                block.SetColor("_BaseColor", new Color(0.2f, 0.25f, 0.35f));
                 renderer.SetPropertyBlock(block);
             }
 

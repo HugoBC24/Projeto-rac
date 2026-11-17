@@ -1,0 +1,123 @@
+using UnityEngine;
+using ProjectRac.Interaction;
+
+namespace ProjectRac.Weapons
+{
+    [RequireComponent(typeof(Rigidbody))]
+    [RequireComponent(typeof(Collider))]
+    public class ShotgunPellet : MonoBehaviour
+    {
+        [Header("Pellet Settings")]
+        [SerializeField] private float speed = 95f;
+        [SerializeField] private float impulseForce = 5.5f;
+        [SerializeField] private float maxLifetime = 1.8f;
+
+        private Rigidbody _rigidbody;
+        private Collider _collider;
+        private ShotgunPelletPool _pool;
+        private Transform _owner;
+        private float _spawnTime;
+        private bool _isFlying;
+        private Vector3 _currentVelocity;
+
+        private void Awake()
+        {
+            _rigidbody = GetComponent<Rigidbody>();
+            _collider = GetComponent<Collider>();
+            _rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            _rigidbody.useGravity = true;
+            _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+        }
+
+        private void FixedUpdate()
+        {
+            if (_isFlying)
+            {
+                _currentVelocity = _rigidbody.linearVelocity;
+            }
+        }
+
+        private void Update()
+        {
+            if (_isFlying && Time.time >= _spawnTime + maxLifetime)
+            {
+                Recycle();
+            }
+        }
+
+        public void Launch(Vector3 origin, Vector3 direction, ShotgunPelletPool pool, Transform owner = null)
+        {
+            if (_collider == null) _collider = GetComponent<Collider>();
+            if (_rigidbody == null) _rigidbody = GetComponent<Rigidbody>();
+
+            _pool = pool;
+            _owner = owner;
+            transform.position = origin;
+            transform.forward = direction;
+
+            if (_owner != null && _collider != null)
+            {
+                var ownerColliders = _owner.GetComponentsInChildren<Collider>();
+                for (int i = 0; i < ownerColliders.Length; i++)
+                {
+                    if (ownerColliders[i] != null && ownerColliders[i] != _collider)
+                    {
+                        Physics.IgnoreCollision(_collider, ownerColliders[i], true);
+                    }
+                }
+            }
+
+            gameObject.SetActive(true);
+
+            Vector3 velocity = direction.normalized * speed;
+            _rigidbody.linearVelocity = velocity;
+            _currentVelocity = velocity;
+            _spawnTime = Time.time;
+            _isFlying = true;
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            if (!_isFlying) return;
+
+            if (_owner != null && (collision.transform == _owner || collision.transform.IsChildOf(_owner)))
+            {
+                return;
+            }
+
+            if (collision.gameObject.CompareTag("Player"))
+            {
+                return;
+            }
+
+            if (collision.rigidbody != null)
+            {
+                Vector3 hitPoint = collision.contactCount > 0 ? collision.contacts[0].point : transform.position;
+                collision.rigidbody.AddForceAtPosition(_currentVelocity.normalized * impulseForce, hitPoint, ForceMode.Impulse);
+            }
+
+            var interactable = collision.collider.GetComponentInParent<IInteractable>();
+            if (interactable != null)
+            {
+                interactable.Interact();
+            }
+
+            Recycle();
+        }
+
+        public void Recycle()
+        {
+            if (!_isFlying) return;
+
+            _isFlying = false;
+            _rigidbody.linearVelocity = Vector3.zero;
+            _rigidbody.angularVelocity = Vector3.zero;
+            gameObject.SetActive(false);
+
+            if (_pool != null)
+            {
+                _pool.ReturnToPool(this);
+            }
+        }
+    }
+}

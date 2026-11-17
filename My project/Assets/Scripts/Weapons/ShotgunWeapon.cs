@@ -1,6 +1,8 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using ProjectRac.Player;
 using ProjectRac.Interaction;
+using ProjectRac.UI;
 
 namespace ProjectRac.Weapons
 {
@@ -17,28 +19,39 @@ namespace ProjectRac.Weapons
         [SerializeField] private Vector3 viewmodelRotation = new Vector3(0f, 0f, 0f);
         [SerializeField] private Vector3 viewmodelScale = new Vector3(1f, 1f, 1f);
 
+        [Header("Ammo & Reload Settings (Inspector)")]
+        [SerializeField] private int maxAmmo = 6;
+        [SerializeField] private int currentAmmo = 6;
+        [SerializeField] private float reloadDuration = 1.8f;
+        [SerializeField] private AudioClip reloadSound;
+
         [Header("Shotgun Ballistics")]
         [SerializeField] private int pelletsCount = 8;
         [SerializeField] private float spreadAngle = 4.2f;
-        [SerializeField] private float maxRange = 35f;
-        [SerializeField] private float pelletImpulse = 4.5f;
         [SerializeField] private float fireCooldown = 0.75f;
-        [SerializeField] private float cameraRecoilPitch = 1.8f;
 
         [Header("Audio & Visual Feedback")]
         [SerializeField] private AudioClip fireSound;
-        [SerializeField] private Color muzzleFlashColor = new Color(1f, 0.8f, 0.3f, 1f);
+        [SerializeField] private AudioClip emptySound;
+
+        [Header("Pool & UI References")]
+        [SerializeField] private ShotgunPelletPool pelletPool;
+        [SerializeField] private AmmoHUD ammoHUD;
 
         public string WeaponName => weaponName;
         public int SlotIndex => slotIndex;
         public bool IsEquipped { get; private set; }
+        public int CurrentAmmo => currentAmmo;
+        public int MaxAmmo => maxAmmo;
+        public bool IsReloading => _isReloading;
 
         private Camera _playerCamera;
         private PlayerInputHandler _inputHandler;
-        private FirstPersonCameraLook _cameraLook;
         private GameObject _viewmodelInstance;
-        private float _lastFireTime;
         private AudioSource _audioSource;
+        private float _lastFireTime;
+        private bool _isReloading;
+        private float _reloadTimer;
 
         private void Awake()
         {
@@ -46,11 +59,23 @@ namespace ProjectRac.Weapons
             SetupViewmodel();
         }
 
-        public void BindReferences(Camera cam, PlayerInputHandler input, FirstPersonCameraLook look)
+        public void BindReferences(Camera cam, PlayerInputHandler input, ShotgunPelletPool pool = null, AmmoHUD hud = null)
         {
             _playerCamera = cam;
             _inputHandler = input;
-            _cameraLook = look;
+            if (pool != null) pelletPool = pool;
+            if (hud != null) ammoHUD = hud;
+        }
+
+        public void BindAmmoHUD(AmmoHUD hud)
+        {
+            ammoHUD = hud;
+            if (IsEquipped) RefreshHUD();
+        }
+
+        public void BindPelletPool(ShotgunPelletPool pool)
+        {
+            pelletPool = pool;
         }
 
         private void ResolveReferences()
@@ -67,9 +92,14 @@ namespace ProjectRac.Weapons
                 if (_inputHandler == null) _inputHandler = FindAnyObjectByType<PlayerInputHandler>();
             }
 
-            if (_cameraLook == null)
+            if (pelletPool == null)
             {
-                _cameraLook = GetComponentInParent<FirstPersonCameraLook>();
+                pelletPool = FindAnyObjectByType<ShotgunPelletPool>();
+            }
+
+            if (ammoHUD == null)
+            {
+                ammoHUD = FindAnyObjectByType<AmmoHUD>();
             }
 
             _audioSource = GetComponent<AudioSource>();
@@ -103,10 +133,71 @@ namespace ProjectRac.Weapons
 
         private void Update()
         {
-            if (!IsEquipped || _inputHandler == null) return;
+            if (!IsEquipped) return;
+
+            HandleReload();
+            HandleShooting();
+        }
+
+        private void HandleReload()
+        {
+            var kb = Keyboard.current;
+            if (kb != null && kb[Key.R].wasPressedThisFrame && !_isReloading && currentAmmo < maxAmmo)
+            {
+                StartReload();
+                return;
+            }
+
+            if (_isReloading)
+            {
+                _reloadTimer += Time.deltaTime;
+                if (_reloadTimer >= reloadDuration)
+                {
+                    CompleteReload();
+                }
+            }
+        }
+
+        public void StartReload()
+        {
+            if (_isReloading || currentAmmo >= maxAmmo) return;
+
+            _isReloading = true;
+            _reloadTimer = 0f;
+
+            if (reloadSound != null && _audioSource != null)
+            {
+                _audioSource.PlayOneShot(reloadSound, 0.8f);
+            }
+
+            RefreshHUD();
+        }
+
+        private void CompleteReload()
+        {
+            _isReloading = false;
+            currentAmmo = maxAmmo;
+            RefreshHUD();
+        }
+
+        private void HandleShooting()
+        {
+            if (_inputHandler == null) return;
 
             if (_inputHandler.PrimaryActionTriggered && Time.time >= _lastFireTime + fireCooldown)
             {
+                if (_isReloading) return;
+
+                if (currentAmmo <= 0)
+                {
+                    if (emptySound != null && _audioSource != null)
+                    {
+                        _audioSource.PlayOneShot(emptySound, 0.6f);
+                    }
+                    StartReload();
+                    return;
+                }
+
                 Fire();
             }
         }
@@ -115,49 +206,26 @@ namespace ProjectRac.Weapons
         {
             if (_playerCamera == null) return;
 
+            currentAmmo--;
             _lastFireTime = Time.time;
+            RefreshHUD();
+
             Transform rootTransform = transform.root;
             Vector3 camPos = _playerCamera.transform.position;
             Vector3 forward = _playerCamera.transform.forward;
+            Vector3 muzzlePos = camPos + _playerCamera.transform.right * 0.22f + _playerCamera.transform.up * -0.18f + forward * 0.45f;
 
             for (int i = 0; i < pelletsCount; i++)
             {
-                // Conical random spread
                 float spreadX = Random.Range(-spreadAngle, spreadAngle);
                 float spreadY = Random.Range(-spreadAngle, spreadAngle);
                 Vector3 shootDir = Quaternion.Euler(spreadX, spreadY, 0f) * forward;
 
-                Ray ray = new Ray(camPos, shootDir);
-                RaycastHit[] hits = Physics.RaycastAll(ray, maxRange, ~0, QueryTriggerInteraction.Ignore);
-                System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-
-                for (int h = 0; h < hits.Length; h++)
+                if (pelletPool != null)
                 {
-                    Transform hitTrans = hits[h].transform;
-                    if (hitTrans == rootTransform || hitTrans.IsChildOf(rootTransform) || hits[h].collider.CompareTag("Player"))
-                    {
-                        continue;
-                    }
-
-                    // Physical impact on Rigidbody
-                    if (hits[h].rigidbody != null)
-                    {
-                        hits[h].rigidbody.AddForceAtPosition(shootDir * pelletImpulse, hits[h].point, ForceMode.Impulse);
-                    }
-
-                    // Interactable trigger
-                    var interactable = hits[h].collider.GetComponentInParent<IInteractable>();
-                    if (interactable != null)
-                    {
-                        interactable.Interact();
-                    }
-
-                    break;
+                    pelletPool.SpawnPellet(muzzlePos, shootDir, rootTransform);
                 }
             }
-
-            // Recoil kick & audio
-            _cameraLook?.AddRecoil(cameraRecoilPitch);
 
             if (fireSound != null && _audioSource != null)
             {
@@ -168,15 +236,24 @@ namespace ProjectRac.Weapons
         public void Equip()
         {
             IsEquipped = true;
-            gameObject.SetActive(true);
+            enabled = true;
             if (_viewmodelInstance != null) _viewmodelInstance.SetActive(true);
+            RefreshHUD();
         }
 
         public void Unequip()
         {
             IsEquipped = false;
+            enabled = false;
             if (_viewmodelInstance != null) _viewmodelInstance.SetActive(false);
-            gameObject.SetActive(false);
+        }
+
+        private void RefreshHUD()
+        {
+            if (ammoHUD != null && IsEquipped)
+            {
+                ammoHUD.UpdateAmmo(weaponName, currentAmmo, maxAmmo, _isReloading);
+            }
         }
 
         public static GameObject CreateDefaultShotgunViewmodel(Transform parent)
@@ -184,7 +261,6 @@ namespace ProjectRac.Weapons
             GameObject gun = new GameObject("DefaultShotgunModel");
             gun.transform.SetParent(parent, false);
 
-            // Double barrels
             GameObject barrel1 = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             barrel1.name = "Barrel_Left";
             barrel1.transform.SetParent(gun.transform, false);
@@ -201,7 +277,6 @@ namespace ProjectRac.Weapons
             barrel2.transform.localScale = new Vector3(0.035f, 0.25f, 0.035f);
             Destroy(barrel2.GetComponent<Collider>());
 
-            // Wooden Stock
             GameObject stock = GameObject.CreatePrimitive(PrimitiveType.Cube);
             stock.name = "Stock";
             stock.transform.SetParent(gun.transform, false);
@@ -210,7 +285,6 @@ namespace ProjectRac.Weapons
             stock.transform.localScale = new Vector3(0.06f, 0.09f, 0.25f);
             Destroy(stock.GetComponent<Collider>());
 
-            // Colors
             var grayBlock = new MaterialPropertyBlock();
             grayBlock.SetColor("_BaseColor", new Color(0.25f, 0.26f, 0.28f));
             barrel1.GetComponent<Renderer>()?.SetPropertyBlock(grayBlock);

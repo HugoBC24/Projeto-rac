@@ -13,7 +13,7 @@ namespace ProjectRac.Weapons
         [Header("3D Model / Viewmodel Customization (Inspector)")]
         [Tooltip("Drag & drop any custom 3D model/prefab here to replace the slingshot viewmodel!")]
         [SerializeField] private GameObject customViewmodelPrefab;
-        [SerializeField] private Vector3 viewmodelOffset = new Vector3(0.22f, -0.2f, 0.42f);
+        [SerializeField] private Vector3 viewmodelOffset = new Vector3(0.2f, -0.2f, 0.45f);
         [SerializeField] private Vector3 viewmodelRotation = new Vector3(0f, 0f, 0f);
         [SerializeField] private Vector3 viewmodelScale = new Vector3(1f, 1f, 1f);
 
@@ -22,16 +22,16 @@ namespace ProjectRac.Weapons
         [SerializeField] private Camera playerCamera;
         [SerializeField] private PlayerInputHandler inputHandler;
         [SerializeField] private Transform muzzlePoint;
-        [SerializeField] private SlingshotChargeHUD chargeHUD;
+        [SerializeField] private AmmoHUD ammoHUD;
 
-        [Header("Launch Force & Charge")]
-        [SerializeField] private float minLaunchForce = 15f;
-        [SerializeField] private float maxLaunchForce = 35f;
-        [SerializeField] private float maxChargeTime = 1.0f;
+        [Header("Launch Force & Charge Settings")]
+        [SerializeField] private float minLaunchForce = 22f;
+        [SerializeField] private float maxLaunchForce = 40f;
+        [SerializeField] private float maxChargeTime = 0.8f;
         [SerializeField] private float fireCooldown = 0.25f;
 
-        [Header("Spawn Offset (if muzzlePoint is null)")]
-        [SerializeField] private Vector3 cameraRelativeOffset = new Vector3(0.2f, -0.15f, 0.4f);
+        [Header("Audio")]
+        [SerializeField] private AudioClip shootSound;
 
         public string WeaponName => weaponName;
         public int SlotIndex => slotIndex;
@@ -42,15 +42,12 @@ namespace ProjectRac.Weapons
         private GameObject _viewmodelInstance;
         private float _chargeTimer;
         private float _lastFireTime;
-        private Texture2D _chargeTex;
+        private AudioSource _audioSource;
 
         private void Awake()
         {
             ResolveReferences();
             SetupViewmodel();
-            _chargeTex = new Texture2D(1, 1);
-            _chargeTex.SetPixel(0, 0, Color.white);
-            _chargeTex.Apply();
         }
 
         private void SetupViewmodel()
@@ -70,27 +67,19 @@ namespace ProjectRac.Weapons
         public void Equip()
         {
             IsEquipped = true;
-            gameObject.SetActive(true);
+            enabled = true;
             if (_viewmodelInstance != null) _viewmodelInstance.SetActive(true);
+            RefreshHUD();
         }
 
         public void Unequip()
         {
             IsEquipped = false;
+            enabled = false;
             IsCharging = false;
             _chargeTimer = 0f;
             ChargeNormalized = 0f;
-            chargeHUD?.UpdateCharge(false, 0f);
             if (_viewmodelInstance != null) _viewmodelInstance.SetActive(false);
-            gameObject.SetActive(false);
-        }
-
-        private void OnDestroy()
-        {
-            if (_chargeTex != null)
-            {
-                Destroy(_chargeTex);
-            }
         }
 
         public void BindPool(SlingshotProjectilePool pool)
@@ -98,16 +87,22 @@ namespace ProjectRac.Weapons
             projectilePool = pool;
         }
 
-        public void BindChargeHUD(SlingshotChargeHUD hud)
+        public void BindAmmoHUD(AmmoHUD hud)
         {
-            chargeHUD = hud;
+            ammoHUD = hud;
+            if (IsEquipped) RefreshHUD();
+        }
+
+        public void SetCustomViewmodelPrefab(GameObject prefab)
+        {
+            customViewmodelPrefab = prefab;
         }
 
         private void ResolveReferences()
         {
             if (playerCamera == null)
             {
-                playerCamera = GetComponentInChildren<Camera>();
+                playerCamera = GetComponentInParent<Camera>();
                 if (playerCamera == null) playerCamera = Camera.main;
             }
 
@@ -122,9 +117,17 @@ namespace ProjectRac.Weapons
                 projectilePool = FindAnyObjectByType<SlingshotProjectilePool>();
             }
 
-            if (chargeHUD == null)
+            if (ammoHUD == null)
             {
-                chargeHUD = FindAnyObjectByType<SlingshotChargeHUD>();
+                ammoHUD = FindAnyObjectByType<AmmoHUD>();
+            }
+
+            _audioSource = GetComponent<AudioSource>();
+            if (_audioSource == null)
+            {
+                _audioSource = gameObject.AddComponent<AudioSource>();
+                _audioSource.spatialBlend = 0f;
+                _audioSource.playOnAwake = false;
             }
         }
 
@@ -137,12 +140,12 @@ namespace ProjectRac.Weapons
 
         private void HandleChargeAndShoot()
         {
+            // Clean charge logic: No viewmodel pull or deformation animation
             if (inputHandler.PrimaryActionHeld && Time.time >= _lastFireTime + fireCooldown)
             {
                 IsCharging = true;
                 _chargeTimer += Time.deltaTime;
                 ChargeNormalized = Mathf.Clamp01(_chargeTimer / maxChargeTime);
-                chargeHUD?.UpdateCharge(true, ChargeNormalized);
             }
 
             if (inputHandler.PrimaryActionReleased && IsCharging)
@@ -151,7 +154,6 @@ namespace ProjectRac.Weapons
                 IsCharging = false;
                 _chargeTimer = 0f;
                 ChargeNormalized = 0f;
-                chargeHUD?.UpdateCharge(false, 0f);
             }
         }
 
@@ -160,8 +162,6 @@ namespace ProjectRac.Weapons
             if (playerCamera == null || projectilePool == null) return;
 
             Transform rootTransform = transform.root;
-
-            // Target where the crosshair is aiming, ignoring player/shooter colliders
             Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             RaycastHit[] hits = Physics.RaycastAll(ray, 120f, ~0, QueryTriggerInteraction.Ignore);
             System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
@@ -179,35 +179,9 @@ namespace ProjectRac.Weapons
                 break;
             }
 
-            Vector3 spawnOrigin;
-            if (muzzlePoint != null)
-            {
-                spawnOrigin = muzzlePoint.position;
-            }
-            else
-            {
-                Vector3 forward = playerCamera.transform.forward;
-                Vector3 right = playerCamera.transform.right;
-                Vector3 up = playerCamera.transform.up;
-
-                Vector3 desired = playerCamera.transform.position
-                                  + right * cameraRelativeOffset.x
-                                  + up * cameraRelativeOffset.y
-                                  + forward * cameraRelativeOffset.z;
-
-                // If aiming close to world geometry, ensure spawn point doesn't penetrate walls/floors
-                Vector3 camToDesired = desired - playerCamera.transform.position;
-                float dist = camToDesired.magnitude;
-                if (dist > 0.001f && Physics.Raycast(playerCamera.transform.position, camToDesired.normalized, out RaycastHit obstHit, dist, ~0, QueryTriggerInteraction.Ignore))
-                {
-                    if (obstHit.transform != rootTransform && !obstHit.transform.IsChildOf(rootTransform) && !obstHit.collider.CompareTag("Player"))
-                    {
-                        desired = obstHit.point - camToDesired.normalized * 0.05f;
-                    }
-                }
-
-                spawnOrigin = desired;
-            }
+            Vector3 spawnOrigin = muzzlePoint != null
+                ? muzzlePoint.position
+                : playerCamera.transform.position + playerCamera.transform.right * 0.2f + playerCamera.transform.up * -0.15f + playerCamera.transform.forward * 0.4f;
 
             Vector3 shootDirection = (targetPoint - spawnOrigin).normalized;
             if (shootDirection == Vector3.zero)
@@ -216,28 +190,22 @@ namespace ProjectRac.Weapons
             }
 
             float launchSpeed = Mathf.Lerp(minLaunchForce, maxLaunchForce, ChargeNormalized);
-
             projectilePool.SpawnProjectile(spawnOrigin, shootDirection * launchSpeed, rootTransform);
             _lastFireTime = Time.time;
+
+            if (shootSound != null && _audioSource != null)
+            {
+                _audioSource.PlayOneShot(shootSound, 0.7f);
+            }
         }
 
-        private void OnGUI()
+        private void RefreshHUD()
         {
-            // If uGUI charge HUD is present, suppress legacy OnGUI
-            if (chargeHUD != null || !IsCharging || _chargeTex == null || Cursor.lockState != CursorLockMode.Locked) return;
-
-            float centerX = Screen.width / 2f;
-            float centerY = Screen.height / 2f;
-            float bgWidth = 50f;
-            float barHeight = 4f;
-
-            GUI.color = new Color(0.1f, 0.1f, 0.1f, 0.7f);
-            GUI.DrawTexture(new Rect(centerX - bgWidth / 2f, centerY + 16f, bgWidth, barHeight), _chargeTex);
-
-            Color tensionColor = Color.Lerp(Color.yellow, new Color(1f, 0.35f, 0.1f), ChargeNormalized);
-            GUI.color = tensionColor;
-            GUI.DrawTexture(new Rect(centerX - bgWidth / 2f, centerY + 16f, bgWidth * ChargeNormalized, barHeight), _chargeTex);
-            GUI.color = Color.white;
+            if (ammoHUD != null && IsEquipped)
+            {
+                // -1 represents infinite ammo (displaying ∞)
+                ammoHUD.UpdateAmmo(weaponName, 1, -1, false);
+            }
         }
     }
 }

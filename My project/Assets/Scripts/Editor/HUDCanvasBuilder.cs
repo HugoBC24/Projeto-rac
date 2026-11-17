@@ -12,8 +12,6 @@ namespace ProjectRac.Editor
     public static class HUDCanvasBuilder
     {
         private const string CrosshairAssetPath = "Assets/Art/UI/default_crosshair.png";
-        private const string ChargeBgAssetPath = "Assets/Art/UI/slingshot_charge_bg.png";
-        private const string ChargeFillAssetPath = "Assets/Art/UI/slingshot_charge_fill.png";
 
         public static void SetupHUDCanvas(GameObject player)
         {
@@ -57,16 +55,13 @@ namespace ProjectRac.Editor
                 playerInteraction.BindCrosshairHUD(crosshairHUD);
             }
 
-            // 3. Slingshot Charge HUD
-            var chargeHUD = BuildSlingshotChargeHUD(canvasObj.transform);
-            var slingshot = player.GetComponentInChildren<SlingshotWeapon>();
-            if (slingshot != null && chargeHUD != null)
+            // 3. Current Ammo HUD (Replaces Weapon Slots UI)
+            var ammoHUD = AmmoHUDBuilder.BuildAmmoHUD(canvasObj.transform);
+            var inventory = player.GetComponent<PlayerWeaponInventory>();
+            if (inventory != null && ammoHUD != null)
             {
-                slingshot.BindChargeHUD(chargeHUD);
+                inventory.BindAmmoHUD(ammoHUD);
             }
-
-            // 4. Weapon Inventory HUD (Slots 1 & 2)
-            WeaponHUDBuilder.BuildWeaponHUD(canvasObj.transform, player);
         }
 
         private static void BuildStaminaHUD(Transform parent, GameObject player)
@@ -81,7 +76,6 @@ namespace ProjectRac.Editor
             rootRt.anchoredPosition = new Vector2(40f, 40f);
             rootRt.sizeDelta = new Vector2(260f, 24f);
 
-            // Background Panel
             GameObject bgObj = new GameObject("Background");
             bgObj.transform.SetParent(staminaRoot.transform, false);
             RectTransform bgRt = bgObj.AddComponent<RectTransform>();
@@ -96,7 +90,6 @@ namespace ProjectRac.Editor
             bgOutline.effectColor = new Color(0.7f, 0.7f, 0.7f, 0.75f);
             bgOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
-            // Slider & Fill Area
             Slider slider = staminaRoot.AddComponent<Slider>();
             slider.minValue = 0f;
             slider.maxValue = 1f;
@@ -124,7 +117,6 @@ namespace ProjectRac.Editor
             slider.fillRect = fillRt;
             slider.targetGraphic = fillImg;
 
-            // Label Text
             GameObject labelObj = new GameObject("Label");
             labelObj.transform.SetParent(staminaRoot.transform, false);
             RectTransform labelRt = labelObj.AddComponent<RectTransform>();
@@ -171,7 +163,6 @@ namespace ProjectRac.Editor
             crosshairImg.color = Color.white;
             crosshairImg.raycastTarget = false;
 
-            // Prompt text child
             GameObject promptObj = new GameObject("PromptText");
             promptObj.transform.SetParent(crosshairObj.transform, false);
 
@@ -199,61 +190,6 @@ namespace ProjectRac.Editor
             CrosshairHUD hud = crosshairObj.AddComponent<CrosshairHUD>();
             hud.BindComponents(crosshairImg, promptText);
             if (crosshairSprite != null) hud.SetCrosshairSprite(crosshairSprite);
-
-            return hud;
-        }
-
-        private static SlingshotChargeHUD BuildSlingshotChargeHUD(Transform parent)
-        {
-            Sprite bgSprite = EnsureAndLoadSprite(ChargeBgAssetPath);
-            Sprite fillSprite = EnsureAndLoadSprite(ChargeFillAssetPath);
-
-            GameObject chargeObj = new GameObject("SlingshotCharge");
-            chargeObj.transform.SetParent(parent, false);
-
-            RectTransform chargeRt = chargeObj.AddComponent<RectTransform>();
-            chargeRt.anchorMin = new Vector2(0.5f, 0.5f);
-            chargeRt.anchorMax = new Vector2(0.5f, 0.5f);
-            chargeRt.pivot = new Vector2(0.5f, 0.5f);
-            chargeRt.anchoredPosition = new Vector2(0f, -28f);
-            chargeRt.sizeDelta = new Vector2(70f, 10f);
-
-            CanvasGroup group = chargeObj.AddComponent<CanvasGroup>();
-            group.alpha = 0f;
-
-            // Background Image
-            GameObject bgObj = new GameObject("Background");
-            bgObj.transform.SetParent(chargeObj.transform, false);
-            RectTransform bgRt = bgObj.AddComponent<RectTransform>();
-            bgRt.anchorMin = Vector2.zero;
-            bgRt.anchorMax = Vector2.one;
-            bgRt.sizeDelta = Vector2.zero;
-
-            Image bgImg = bgObj.AddComponent<Image>();
-            bgImg.sprite = bgSprite;
-            bgImg.color = Color.white;
-            bgImg.raycastTarget = false;
-
-            // Fill Image
-            GameObject fillObj = new GameObject("Fill");
-            fillObj.transform.SetParent(chargeObj.transform, false);
-            RectTransform fillRt = fillObj.AddComponent<RectTransform>();
-            fillRt.anchorMin = Vector2.zero;
-            fillRt.anchorMax = Vector2.one;
-            fillRt.sizeDelta = Vector2.zero;
-
-            Image fillImg = fillObj.AddComponent<Image>();
-            fillImg.sprite = fillSprite;
-            fillImg.type = Image.Type.Filled;
-            fillImg.fillMethod = Image.FillMethod.Horizontal;
-            fillImg.fillOrigin = (int)Image.OriginHorizontal.Left;
-            fillImg.fillAmount = 0f;
-            fillImg.color = new Color(1f, 0.9f, 0.2f, 1f);
-            fillImg.raycastTarget = false;
-
-            SlingshotChargeHUD hud = chargeObj.AddComponent<SlingshotChargeHUD>();
-            hud.BindComponents(group, bgImg, fillImg);
-            hud.SetSprites(bgSprite, fillSprite);
 
             return hud;
         }

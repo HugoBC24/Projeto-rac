@@ -1,5 +1,6 @@
 using UnityEngine;
 using ProjectRac.Interaction;
+using ProjectRac.Combat;
 
 namespace ProjectRac.Weapons
 {
@@ -102,10 +103,18 @@ namespace ProjectRac.Weapons
                 return;
             }
 
+            Vector3 hitPoint = collision.contactCount > 0 ? collision.contacts[0].point : transform.position;
+
+            // Apply damage if target implements IDamageable
+            var damageable = collision.collider.GetComponentInParent<IDamageable>();
+            if (damageable != null)
+            {
+                damageable.TakeDamage(16f, hitPoint, _currentVelocity.normalized);
+            }
+
             // 3. Apply physics impulse
             if (collision.rigidbody != null)
             {
-                Vector3 hitPoint = collision.contactCount > 0 ? collision.contacts[0].point : transform.position;
                 collision.rigidbody.AddForceAtPosition(_currentVelocity.normalized * impulseForce, hitPoint, ForceMode.Impulse);
             }
 

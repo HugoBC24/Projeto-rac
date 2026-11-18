@@ -46,6 +46,9 @@ namespace ProjectRac.Editor
                 eventSys.AddComponent<InputSystemUIInputModule>();
             }
 
+            // 0. Health HUD (stacked above Stamina)
+            HealthHUDBuilder.BuildHealthHUD(canvasObj.transform, player);
+
             // 1. Stamina HUD
             BuildStaminaHUD(canvasObj.transform, player);
 

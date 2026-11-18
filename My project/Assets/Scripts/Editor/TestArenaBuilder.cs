@@ -21,17 +21,14 @@ namespace ProjectRac.Editor
 
             // 1. Setup Arena Root
             GameObject arenaRoot = GameObject.Find("TestArena");
-            if (arenaRoot != null)
-            {
-                Undo.DestroyObjectImmediate(arenaRoot);
-            }
+            if (arenaRoot != null) Undo.DestroyObjectImmediate(arenaRoot);
             arenaRoot = new GameObject("TestArena");
             Undo.RegisterCreatedObjectUndo(arenaRoot, "Create Arena Root");
 
             // 2. Main Floor & Walls
             BuildFloorAndWalls(arenaRoot.transform);
 
-            // 3. Platforms & Ramp (Platform_High resized for jump & visibility)
+            // 3. Platforms & Ramp (STRICTLY PRESERVED: do NOT change transforms)
             BuildPlatformsAndRamp(arenaRoot.transform);
 
             // 4. Interactive Test Objects
@@ -39,20 +36,22 @@ namespace ProjectRac.Editor
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Beta", new Vector3(-10f, 1f, 8f));
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Gamma", new Vector3(10f, 4f, 18f));
 
-            // 5. Physics Target Stack (Boxes)
+            // 5. Physics Target Stack (Boxes) & Shotgun Pickup Pedestal
             BuildPhysicsTargetStack(arenaRoot.transform, new Vector3(0f, 0f, 16f));
-
-            // 5b. World Shotgun Pickup (Clearly Visible on High Platform Pedestal)
             CreateShotgunPickup(arenaRoot.transform, new Vector3(10f, 2.72f, 17f));
 
             // 6. Setup Shoot Pools (Slingshot + Shotgun)
             var (slingshotPool, pelletPool) = SetupShootPools(arenaRoot.transform);
 
-            // 7. Setup Player with dedicated weapons & prefab
+            // 7. Setup Player with dedicated weapons & health
             GameObject player = SetupPlayer(slingshotPool, pelletPool);
 
-            // 8. Setup Responsive uGUI Canvas & Ammo HUD
+            // 8. Setup Responsive uGUI Canvas (Health, Stamina, Crosshair, Ammo)
             HUDCanvasBuilder.SetupHUDCanvas(player);
+
+            // 9. Setup NavMesh & Spawn Melee Enemy (No floating bar, no NavMesh recoil)
+            EnemyBuilder.SetupNavMesh(arenaRoot.transform);
+            EnemyBuilder.SpawnMeleeEnemy(arenaRoot.transform, new Vector3(-12f, 0f, 12f));
 
             // Mark Scene Dirty and Save
             EditorSceneManager.MarkSceneDirty(activeScene);
@@ -78,6 +77,7 @@ namespace ProjectRac.Editor
 
         private static void BuildPlatformsAndRamp(Transform root)
         {
+            // PLATFORMS AND RAMP: Preserved exactly as requested
             GameObject platform1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
             platform1.name = "Platform_Low";
             platform1.transform.parent = root;
@@ -104,12 +104,14 @@ namespace ProjectRac.Editor
             stackRoot.transform.parent = root;
             stackRoot.transform.position = centerPos;
 
-            CreatePhysicsBox(stackRoot.transform, new Vector3(-1.1f, 0.5f, 0f));
-            CreatePhysicsBox(stackRoot.transform, new Vector3(0f, 0.5f, 0f));
-            CreatePhysicsBox(stackRoot.transform, new Vector3(1.1f, 0.5f, 0f));
-            CreatePhysicsBox(stackRoot.transform, new Vector3(-0.55f, 1.5f, 0f));
-            CreatePhysicsBox(stackRoot.transform, new Vector3(0.55f, 1.5f, 0f));
-            CreatePhysicsBox(stackRoot.transform, new Vector3(0f, 2.5f, 0f));
+            Vector3[] offsets = {
+                new Vector3(-1.1f, 0.5f, 0f), new Vector3(0f, 0.5f, 0f), new Vector3(1.1f, 0.5f, 0f),
+                new Vector3(-0.55f, 1.5f, 0f), new Vector3(0.55f, 1.5f, 0f), new Vector3(0f, 2.5f, 0f)
+            };
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                CreatePhysicsBox(stackRoot.transform, offsets[i]);
+            }
         }
 
         private static void CreatePhysicsBox(Transform parent, Vector3 localPos)
@@ -183,9 +185,7 @@ namespace ProjectRac.Editor
             foreach (var cam in existingCams)
             {
                 if (cam.transform.parent == null || cam.transform.parent.name != "Player")
-                {
                     Undo.DestroyObjectImmediate(cam.gameObject);
-                }
             }
 
             GameObject player = GameObject.Find("Player");
@@ -213,6 +213,7 @@ namespace ProjectRac.Editor
                 inputHandler.SetActionAsset(actionAsset);
             }
 
+            player.AddComponent<PlayerHealth>();
             player.AddComponent<PlayerStamina>();
             player.AddComponent<FirstPersonController>();
             player.AddComponent<PlayerInteraction>();
@@ -222,7 +223,6 @@ namespace ProjectRac.Editor
             GameObject cameraObj = new GameObject("FirstPersonCamera");
             cameraObj.transform.parent = player.transform;
             cameraObj.transform.localPosition = new Vector3(0f, 1.7f, 0f);
-            cameraObj.transform.localRotation = Quaternion.identity;
 
             var camComponent = cameraObj.AddComponent<Camera>();
             camComponent.tag = "MainCamera";
@@ -237,7 +237,6 @@ namespace ProjectRac.Editor
             GameObject weaponsRoot = new GameObject("Weapons");
             weaponsRoot.transform.parent = cameraObj.transform;
             weaponsRoot.transform.localPosition = Vector3.zero;
-            weaponsRoot.transform.localRotation = Quaternion.identity;
 
             var slingshotPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SlingshotPrefabGenerator.PrefabPath)
                                   ?? SlingshotPrefabGenerator.GeneratePrefab();
@@ -245,7 +244,6 @@ namespace ProjectRac.Editor
             // Slingshot Weapon
             GameObject slingObj = new GameObject("Slingshot");
             slingObj.transform.parent = weaponsRoot.transform;
-            slingObj.transform.localPosition = Vector3.zero;
             var slingshot = slingObj.AddComponent<SlingshotWeapon>();
             slingshot.SetCustomViewmodelPrefab(slingshotPrefab);
             slingshot.BindPool(slingPool);
@@ -253,18 +251,15 @@ namespace ProjectRac.Editor
             // Shotgun Weapon with Dedicated ShootPoint
             GameObject shotObj = new GameObject("Shotgun");
             shotObj.transform.parent = weaponsRoot.transform;
-            shotObj.transform.localPosition = Vector3.zero;
             var shotgun = shotObj.AddComponent<ShotgunWeapon>();
 
             GameObject shootPointObj = new GameObject("ShootPoint");
             shootPointObj.transform.parent = shotObj.transform;
             shootPointObj.transform.localPosition = new Vector3(0.24f, -0.22f, 0.85f);
-            shootPointObj.transform.localRotation = Quaternion.identity;
 
             shotgun.SetShootPoint(shootPointObj.transform);
             shotgun.BindReferences(camComponent, inputHandler, shotPool);
 
-            // Inventory
             var inventory = player.AddComponent<PlayerWeaponInventory>();
             inventory.BindWeapons(slingshot, shotgun);
 
@@ -273,7 +268,6 @@ namespace ProjectRac.Editor
 
         private static void CreateShotgunPickup(Transform parent, Vector3 pickupPos)
         {
-            // Pedestal: Base flush on Platform_High (2.20m), top at 2.70m
             GameObject pedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             pedestal.name = "Shotgun_Pedestal";
             pedestal.transform.parent = parent;
@@ -284,11 +278,10 @@ namespace ProjectRac.Editor
             if (renderer != null)
             {
                 var block = new MaterialPropertyBlock();
-                block.SetColor("_BaseColor", new Color(0.18f, 0.25f, 0.42f)); // Deep metallic blue
+                block.SetColor("_BaseColor", new Color(0.18f, 0.25f, 0.42f));
                 renderer.SetPropertyBlock(block);
             }
 
-            // Highlighting point light over pedestal
             GameObject lightObj = new GameObject("Pedestal_Light");
             lightObj.transform.parent = pedestal.transform;
             lightObj.transform.localPosition = new Vector3(0f, 1.0f, 0f);
@@ -298,10 +291,9 @@ namespace ProjectRac.Editor
             light.intensity = 1.2f;
             light.range = 5f;
 
-            // Shotgun Pickup: positioned resting right on top of the pedestal
             GameObject pickupObj = new GameObject("ShotgunPickup");
             pickupObj.transform.parent = parent;
-            pickupObj.transform.position = pickupPos; // (10f, 2.72f, 17f)
+            pickupObj.transform.position = pickupPos;
 
             var boxCol = pickupObj.AddComponent<BoxCollider>();
             boxCol.isTrigger = false;

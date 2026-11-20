@@ -1,0 +1,35 @@
+{
+  "entries": [
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills",
+      "include_only": ["router"]
+    },
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills/skills/unity"
+    },
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills/skills/disciplines"
+    },
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills/skills/genres"
+    },
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills/skills/workflows"
+    },
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills/skills/godot"
+    },
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills/skills/unreal"
+    },
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills/skills/web-engines"
+    },
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills/skills/other-engines"
+    },
+    {
+      "path": ".agents/vendor/awesome-gamedev-agent-skills/skills/ebitengine"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+# Editor Tooling
+
+Voltar ao indice: [[MOC]] | Relacionados: [[player-systems]], [[weapons-and-combat]], [[enemy-ai]], [[ui-and-hud]], [[unity-codemode-workflow]]
+
+## Escopo
+
+Scripts exclusivos do Unity Editor (`Assets/Scripts/Editor/`) usados para montar de forma reproduzivel a arena de teste (`SampleScene`), os inimigos, os prefabs de armas e a hierarquia completa do Canvas uGUI.
+
+## Builders (`Assets/Scripts/Editor/`)
+
+| Arquivo | Linhas | Menu / Funcao | O que Constroi |
+| :--- | :---: | :--- | :--- |
+| `TestArenaBuilder.cs` | 307 | `[MenuItem("Tools/Build FPAA Test Arena")]` | Monta a arena de teste completa em `SampleScene` (plataformas incluindo `Platform_High` a `2.2m`, jogador, pedestal da escopeta, inimigos, NavMesh e HUD) |
+| `HUDCanvasBuilder.cs` | 277 | Helper estatico | Cria o Canvas uGUI principal, `CrosshairHUD`, `SlingshotChargeHUD` e `StaminaBarUI`, ligando referencias |
+| `AmmoHUDBuilder.cs` | 126 | Helper estatico | Constroi o painel de municao (`AmmoHUD`) e conecta ao inventario/armas |
+| `HealthHUDBuilder.cs` | 93 | Helper estatico | Constroi a barra de vida (`PlayerHealthBarUI`) e vincula a `PlayerHealth` |
+| `EnemyBuilder.cs` | 58 | Helper estatico | Instancia e configura inimigos com `NavMeshAgent`, `EnemyMeleeAI` e `EnemyHealth` |
+| `SlingshotPrefabGenerator.cs` | 99 | `[MenuItem("Tools/Generate Slingshot Prefab")]` | Gera `Assets/Prefabs/Slingshot_Viewmodel.prefab` |
+| `TestCubeCreator.cs` | 22 | Helper estatico | Utilitario minimo de criacao de cubo de teste |
+
+## Relacao com Code Mode
+
+```mermaid
+flowchart LR
+    AGENT["Agente Antigravity<br/>(Code Mode)"] -->|unity command script run| PROBE["AgentScripts/*.cs<br/>(fora de Assets/)"]
+    PROBE -->|chama APIs de Editor| BUILDERS["Assets/Scripts/Editor/*Builder.cs"]
+    BUILDERS -->|atualiza cena ativa| SCENE["Assets/Scenes/SampleScene.unity"]
+```
+
+## Saude Tecnica
+
+- **Debito tecnico registrado (KI-01)**: `TestArenaBuilder.cs` possui **307 linhas**. Caso novas areas ou obstaculos sejam adicionados a arena, separar a construcao de geometria da configuracao de entidades.
+- Sempre que um Editor estiver aberto, prefira acionar builders ou editar a cena via [[unity-codemode-workflow]] em vez de editar arquivos `.unity` ou `.prefab` manualmente em texto.

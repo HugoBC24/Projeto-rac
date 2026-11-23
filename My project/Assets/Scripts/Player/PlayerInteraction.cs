@@ -76,10 +76,11 @@ namespace ProjectRac.Player
 
         private void HandleInteraction()
         {
-            // Strictly check key 'E' for interaction — Never mouse clicks!
+            // Prevent double-triggering on toggleables: InputSystem_Actions maps Interact with
+            // a "Hold" interaction, so holding E would otherwise fire once on press and again on hold.
             var kb = Keyboard.current;
             bool ePressed = (kb != null && kb[Key.E].wasPressedThisFrame)
-                         || (inputHandler != null && inputHandler.InteractTriggered);
+                         || ((kb == null || !kb[Key.E].isPressed) && inputHandler != null && inputHandler.InteractTriggered);
 
             if (_currentInteractable != null && ePressed)
             {

@@ -33,6 +33,7 @@ namespace ProjectRac.Weapons
         [SerializeField] private int pelletsCount = 8;
         [SerializeField] private float spreadAngle = 4.0f;
         [SerializeField] private float fireCooldown = 0.75f;
+        [SerializeField] private float recoilPitch = 2.2f;
 
         [Header("Audio & Visual Feedback")]
         [SerializeField] private AudioClip fireSound;
@@ -51,10 +52,11 @@ namespace ProjectRac.Weapons
         public Transform ShootPoint => shootPoint;
 
         private Camera _playerCamera;
+        private FirstPersonCameraLook _cameraLook;
         private PlayerInputHandler _inputHandler;
         private GameObject _viewmodelInstance;
         private AudioSource _audioSource;
-        private float _lastFireTime;
+        private float _lastFireTime = float.NegativeInfinity;
         private bool _isReloading;
         private float _reloadTimer;
 
@@ -96,21 +98,19 @@ namespace ProjectRac.Weapons
                 if (_playerCamera == null) _playerCamera = Camera.main;
             }
 
+            if (_cameraLook == null && _playerCamera != null)
+            {
+                _cameraLook = _playerCamera.GetComponent<FirstPersonCameraLook>();
+            }
+
             if (_inputHandler == null)
             {
                 _inputHandler = GetComponentInParent<PlayerInputHandler>();
                 if (_inputHandler == null) _inputHandler = FindAnyObjectByType<PlayerInputHandler>();
             }
 
-            if (pelletPool == null)
-            {
-                pelletPool = FindAnyObjectByType<ShotgunPelletPool>();
-            }
-
-            if (ammoHUD == null)
-            {
-                ammoHUD = FindAnyObjectByType<AmmoHUD>();
-            }
+            if (pelletPool == null) pelletPool = FindAnyObjectByType<ShotgunPelletPool>();
+            if (ammoHUD == null) ammoHUD = FindAnyObjectByType<AmmoHUD>();
 
             _audioSource = GetComponent<AudioSource>();
             if (_audioSource == null)
@@ -245,12 +245,15 @@ namespace ProjectRac.Weapons
             Vector3 baseDir = (targetPoint - spawnOrigin).normalized;
             if (baseDir == Vector3.zero) baseDir = _playerCamera.transform.forward;
 
-            // 3. Spawn 8 distinct pellets in a conical spread
+            // 3. Spawn pellets in a camera-relative conical spread
+            Transform camTransform = _playerCamera.transform;
             for (int i = 0; i < pelletsCount; i++)
             {
                 float spreadX = Random.Range(-spreadAngle, spreadAngle);
                 float spreadY = Random.Range(-spreadAngle, spreadAngle);
-                Vector3 shootDir = Quaternion.Euler(spreadX, spreadY, 0f) * baseDir;
+                Quaternion spreadRot = Quaternion.AngleAxis(spreadY, camTransform.up)
+                                     * Quaternion.AngleAxis(spreadX, camTransform.right);
+                Vector3 shootDir = spreadRot * baseDir;
 
                 if (pelletPool != null)
                 {
@@ -258,16 +261,16 @@ namespace ProjectRac.Weapons
                 }
             }
 
-            if (fireSound != null && _audioSource != null)
-            {
-                _audioSource.PlayOneShot(fireSound, 0.85f);
-            }
+            if (_cameraLook != null && recoilPitch > 0f) _cameraLook.AddRecoil(recoilPitch);
+            if (fireSound != null && _audioSource != null) _audioSource.PlayOneShot(fireSound, 0.85f);
         }
 
         public void Equip()
         {
+            ResolveReferences();
             IsEquipped = true;
             enabled = true;
+            if (_viewmodelInstance == null) SetupViewmodel();
             if (_viewmodelInstance != null) _viewmodelInstance.SetActive(true);
             RefreshHUD();
         }

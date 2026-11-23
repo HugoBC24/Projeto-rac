@@ -15,7 +15,8 @@ Concentra movimentacao em primeira pessoa, camera, leitura de input, stamina com
 | `FirstPersonCameraLook.cs` | 98 | Rotacao de camera FPS, recuo vertical e trava do cursor | `AddRecoil(float pitchOffset)`, `LockCursor()`, `UnlockCursor()` |
 | `PlayerStamina.cs` | 123 | Recurso de stamina (0-100), consumo em sprint/salto e estado de exaustao | `TryConsumeSprint`, `TryConsumeJump`, `RestoreStamina`, eventos `OnStaminaChanged`, `OnExhaustionChanged` |
 | `PlayerHealth.cs` | 106 | Vida do jogador (`IDamageable`), janela de invulnerabilidade e respawn | `TakeDamage`, `Heal`, `SetRespawnPosition`, eventos `OnHealthChanged`, `OnPlayerDamaged`, `OnPlayerDied` |
-| `PlayerInteraction.cs` | 114 | Raycast de interacao (tecla `E`) contra `IInteractable` e prompt no HUD | `BindCrosshairHUD(CrosshairHUD)` |
+| `PlayerInteraction.cs` | 115 | Raycast de interacao (tecla `E`, protegido contra duplo disparo de `Hold`) contra `IInteractable` e prompt no HUD | `BindCrosshairHUD(CrosshairHUD)` |
+| `DoorController.cs` (`Interaction/`) | 176 | Porta articulada (`IInteractable`) com abertura suave para o lado oposto ao jogador e `NavMeshObstacle` dinamico | `IsOpen`, `Open`, `Close`, `Toggle`, `Configure(pivot, obstacle)` |
 | `StaminaExhaustionPostProcess.cs` | 229 | Volume URP de exaustao (lens distortion, vignette, film grain) abaixo de stamina `35` | `CurrentWeight`, `TargetWeight`, `BindPlayerStamina(PlayerStamina)` |
 
 ## Fluxo de Dados

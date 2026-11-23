@@ -10,8 +10,9 @@ namespace ProjectRac.Weapons
         [SerializeField] private int initialPoolSize = 48;
 
         private readonly Queue<ShotgunPellet> _availableQueue = new Queue<ShotgunPellet>();
-        private readonly List<ShotgunPellet> _allPellets = new List<ShotgunPellet>();
+        private readonly List<ShotgunPellet> _activePellets = new List<ShotgunPellet>();
         private Transform _poolRoot;
+        private static Material _sharedTrailMaterial;
 
         private void Awake()
         {
@@ -31,22 +32,6 @@ namespace ProjectRac.Weapons
             for (int i = 0; i < initialPoolSize; i++)
             {
                 CreateNewPooledInstance();
-            }
-
-            // Guarantee mutual collision immunity between all pellets in the pool
-            for (int i = 0; i < _allPellets.Count; i++)
-            {
-                var colA = _allPellets[i].PelletCollider;
-                if (colA == null) continue;
-
-                for (int j = i + 1; j < _allPellets.Count; j++)
-                {
-                    var colB = _allPellets[j].PelletCollider;
-                    if (colB != null)
-                    {
-                        Physics.IgnoreCollision(colA, colB, true);
-                    }
-                }
             }
         }
 
@@ -69,7 +54,6 @@ namespace ProjectRac.Weapons
             }
 
             instanceObj.SetActive(false);
-            _allPellets.Add(pellet);
             _availableQueue.Enqueue(pellet);
             return pellet;
         }
@@ -81,13 +65,40 @@ namespace ProjectRac.Weapons
                 : CreateNewPooledInstance();
 
             pellet.Launch(position, direction, this, owner);
+            IgnoreCollisionsWithActivePellets(pellet);
+            _activePellets.Add(pellet);
             return pellet;
+        }
+
+        // PhysX ignores Physics.IgnoreCollision calls on inactive colliders, so mutual pellet
+        // immunity must be registered only after each pellet is activated in Launch().
+        private void IgnoreCollisionsWithActivePellets(ShotgunPellet newlyActivated)
+        {
+            var newCol = newlyActivated.PelletCollider;
+            if (newCol == null) return;
+
+            for (int i = _activePellets.Count - 1; i >= 0; i--)
+            {
+                var other = _activePellets[i];
+                if (other == null || !other.gameObject.activeInHierarchy)
+                {
+                    _activePellets.RemoveAt(i);
+                    continue;
+                }
+
+                var otherCol = other.PelletCollider;
+                if (otherCol != null && otherCol != newCol)
+                {
+                    Physics.IgnoreCollision(newCol, otherCol, true);
+                }
+            }
         }
 
         public void ReturnToPool(ShotgunPellet pellet)
         {
             if (pellet == null) return;
 
+            _activePellets.Remove(pellet);
             pellet.transform.SetParent(_poolRoot);
             _availableQueue.Enqueue(pellet);
         }
@@ -121,7 +132,11 @@ namespace ProjectRac.Weapons
             trail.endWidth = 0.01f;
             trail.startColor = new Color(1f, 0.85f, 0.35f, 0.95f);
             trail.endColor = new Color(1f, 0.45f, 0.1f, 0f);
-            trail.material = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
+            if (_sharedTrailMaterial == null)
+            {
+                _sharedTrailMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
+            }
+            trail.sharedMaterial = _sharedTrailMaterial;
 
             pellet.AddComponent<ShotgunPellet>();
             return pellet;

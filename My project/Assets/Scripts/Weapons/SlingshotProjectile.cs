@@ -52,20 +52,22 @@ namespace ProjectRac.Weapons
             _owner = owner;
             transform.position = origin;
 
+            gameObject.SetActive(true);
+
+            // Register IgnoreCollision after activation so PhysX honours it.
             if (_owner != null && _collider != null)
             {
                 var ownerColliders = _owner.GetComponentsInChildren<Collider>();
                 foreach (var col in ownerColliders)
                 {
-                    if (col != null && col != _collider)
+                    if (col != null && col != _collider && col.enabled && col.gameObject.activeInHierarchy)
                     {
                         Physics.IgnoreCollision(_collider, col, true);
                     }
                 }
             }
 
-            gameObject.SetActive(true);
-
+            _rigidbody.position = origin;
             _rigidbody.linearVelocity = velocity;
             _rigidbody.angularVelocity = Random.insideUnitSphere * 5f;
             _currentVelocity = velocity;
@@ -103,9 +105,11 @@ namespace ProjectRac.Weapons
                 collision.rigidbody.AddForceAtPosition(impulse, hitPoint, ForceMode.Impulse);
             }
 
-            // Trigger interactables if target implements IInteractable (Never weapon pickups!)
+            // Trigger interactables if target implements IInteractable (Never pickups or doors)
             var interactable = collision.collider.GetComponentInParent<IInteractable>();
-            if (interactable != null && collision.collider.GetComponentInParent<ShotgunPickup>() == null)
+            if (interactable != null
+                && collision.collider.GetComponentInParent<ShotgunPickup>() == null
+                && collision.collider.GetComponentInParent<DoorController>() == null)
             {
                 interactable.Interact();
             }

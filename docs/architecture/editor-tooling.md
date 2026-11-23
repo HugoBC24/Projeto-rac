@@ -10,7 +10,8 @@ Scripts exclusivos do Unity Editor (`Assets/Scripts/Editor/`) usados para montar
 
 | Arquivo | Linhas | Menu / Funcao | O que Constroi |
 | :--- | :---: | :--- | :--- |
-| `TestArenaBuilder.cs` | 307 | `[MenuItem("Tools/Build FPAA Test Arena")]` | Monta a arena de teste completa em `SampleScene` (plataformas incluindo `Platform_High` a `2.2m`, jogador, pedestal da escopeta, inimigos, NavMesh e HUD) |
+| `TestArenaBuilder.cs` | 298 | `[MenuItem("Tools/Build FPAA Test Arena")]` | Monta a arena de teste completa em `SampleScene` (plataformas incluindo `Platform_High` a `2.2m`, parede com porta via `DoorArenaBuilder`, jogador, pedestal da escopeta, inimigos, NavMesh e HUD) |
+| `DoorArenaBuilder.cs` | 215 | Helper estatico | Constroi `WallWithDoor` (`10m x 4m`) com batente, `Door_Pivot`, `Door_Leaf` (`DoorController` + `NavMeshObstacle` + `NavMeshModifier`), macanetas e materiais URP persistentes em `Assets/Materials/Arena/` |
 | `HUDCanvasBuilder.cs` | 277 | Helper estatico | Cria o Canvas uGUI principal, `CrosshairHUD`, `SlingshotChargeHUD` e `StaminaBarUI`, ligando referencias |
 | `AmmoHUDBuilder.cs` | 126 | Helper estatico | Constroi o painel de municao (`AmmoHUD`) e conecta ao inventario/armas |
 | `HealthHUDBuilder.cs` | 93 | Helper estatico | Constroi a barra de vida (`PlayerHealthBarUI`) e vincula a `PlayerHealth` |

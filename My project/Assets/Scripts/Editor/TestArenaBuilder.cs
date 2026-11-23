@@ -36,8 +36,9 @@ namespace ProjectRac.Editor
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Beta", new Vector3(-10f, 1f, 8f));
             CreateInteractable(arenaRoot.transform, "Interactive_Cube_Gamma", new Vector3(10f, 4f, 18f));
 
-            // 5. Physics Target Stack (Boxes) & Shotgun Pickup Pedestal
+            // 5. Physics Target Stack (Boxes), Wall With Door & Shotgun Pickup Pedestal
             BuildPhysicsTargetStack(arenaRoot.transform, new Vector3(0f, 0f, 16f));
+            DoorArenaBuilder.BuildWallWithDoor(arenaRoot.transform);
             CreateShotgunPickup(arenaRoot.transform, new Vector3(10f, 2.72f, 17f));
 
             // 6. Setup Shoot Pools (Slingshot + Shotgun)
@@ -118,22 +119,13 @@ namespace ProjectRac.Editor
         {
             GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
             box.name = "TargetBox";
-            box.transform.parent = parent;
+            box.transform.SetParent(parent, false);
             box.transform.localPosition = localPos;
             box.transform.localScale = new Vector3(0.95f, 0.95f, 0.95f);
 
             var rb = box.AddComponent<Rigidbody>();
             rb.mass = 1.2f;
             rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-
-            var renderer = box.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                var block = new MaterialPropertyBlock();
-                renderer.GetPropertyBlock(block);
-                block.SetColor("_BaseColor", new Color(0.75f, 0.55f, 0.32f));
-                renderer.SetPropertyBlock(block);
-            }
         }
 
         private static void CreateWall(Transform parent, string name, Vector3 pos, Vector3 scale)
@@ -241,21 +233,21 @@ namespace ProjectRac.Editor
             var slingshotPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SlingshotPrefabGenerator.PrefabPath)
                                   ?? SlingshotPrefabGenerator.GeneratePrefab();
 
-            // Slingshot Weapon
+            // Slingshot Weapon (SetParent(..., false) keeps localPosition at zero on camera)
             GameObject slingObj = new GameObject("Slingshot");
-            slingObj.transform.parent = weaponsRoot.transform;
+            slingObj.transform.SetParent(weaponsRoot.transform, false);
             var slingshot = slingObj.AddComponent<SlingshotWeapon>();
             slingshot.SetCustomViewmodelPrefab(slingshotPrefab);
             slingshot.BindPool(slingPool);
 
-            // Shotgun Weapon with Dedicated ShootPoint
+            // Shotgun Weapon with Dedicated ShootPoint aligned with barrel muzzle
             GameObject shotObj = new GameObject("Shotgun");
-            shotObj.transform.parent = weaponsRoot.transform;
+            shotObj.transform.SetParent(weaponsRoot.transform, false);
             var shotgun = shotObj.AddComponent<ShotgunWeapon>();
 
             GameObject shootPointObj = new GameObject("ShootPoint");
-            shootPointObj.transform.parent = shotObj.transform;
-            shootPointObj.transform.localPosition = new Vector3(0.24f, -0.22f, 0.85f);
+            shootPointObj.transform.SetParent(shotObj.transform, false);
+            shootPointObj.transform.localPosition = new Vector3(0.24f, -0.22f, 1.05f);
 
             shotgun.SetShootPoint(shootPointObj.transform);
             shotgun.BindReferences(camComponent, inputHandler, shotPool);
@@ -274,16 +266,15 @@ namespace ProjectRac.Editor
             pedestal.transform.position = new Vector3(pickupPos.x, 2.45f, pickupPos.z);
             pedestal.transform.localScale = new Vector3(1.2f, 0.25f, 1.2f);
 
-            var renderer = pedestal.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                var block = new MaterialPropertyBlock();
-                block.SetColor("_BaseColor", new Color(0.18f, 0.25f, 0.42f));
-                renderer.SetPropertyBlock(block);
-            }
+            // Replace CapsuleCollider (which inflates above short cylinders and blocks raycasts)
+            // with a flush BoxCollider matching the cylinder's visual top (y = 2.70).
+            var capsule = pedestal.GetComponent<Collider>();
+            if (capsule != null) Object.DestroyImmediate(capsule);
+            var pedBox = pedestal.AddComponent<BoxCollider>();
+            pedBox.size = new Vector3(1f, 2f, 1f);
 
             GameObject lightObj = new GameObject("Pedestal_Light");
-            lightObj.transform.parent = pedestal.transform;
+            lightObj.transform.SetParent(pedestal.transform, false);
             lightObj.transform.localPosition = new Vector3(0f, 1.0f, 0f);
             var light = lightObj.AddComponent<Light>();
             light.type = LightType.Point;
@@ -297,8 +288,8 @@ namespace ProjectRac.Editor
 
             var boxCol = pickupObj.AddComponent<BoxCollider>();
             boxCol.isTrigger = false;
-            boxCol.size = new Vector3(0.65f, 0.45f, 1.4f);
-            boxCol.center = new Vector3(0f, 0.15f, 0f);
+            boxCol.size = new Vector3(0.8f, 0.5f, 1.5f);
+            boxCol.center = new Vector3(0f, 0.25f, 0f);
 
             var pickup = pickupObj.AddComponent<ShotgunPickup>();
             pickup.ResolveWorldModel();

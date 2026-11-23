@@ -17,6 +17,7 @@ namespace ProjectRac.Weapons
 
         private Rigidbody _rigidbody;
         private Collider _collider;
+        private TrailRenderer _trailRenderer;
         private ShotgunPelletPool _pool;
         private Transform _owner;
         private float _spawnTime;
@@ -27,6 +28,7 @@ namespace ProjectRac.Weapons
         {
             _rigidbody = GetComponent<Rigidbody>();
             _collider = GetComponent<Collider>();
+            _trailRenderer = GetComponent<TrailRenderer>();
             _rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             _rigidbody.useGravity = false;
             _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
@@ -52,30 +54,37 @@ namespace ProjectRac.Weapons
         {
             if (_collider == null) _collider = GetComponent<Collider>();
             if (_rigidbody == null) _rigidbody = GetComponent<Rigidbody>();
+            if (_trailRenderer == null) _trailRenderer = GetComponent<TrailRenderer>();
 
             _pool = pool;
             _owner = owner;
 
-            transform.position = origin;
-            transform.forward = direction;
-            _rigidbody.position = origin;
-            _rigidbody.rotation = Quaternion.LookRotation(direction);
+            Vector3 dirNormalized = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.forward;
+            Quaternion lookRot = Quaternion.LookRotation(dirNormalized);
+            transform.SetPositionAndRotation(origin, lookRot);
 
+            gameObject.SetActive(true);
+
+            // PhysX ignores IgnoreCollision on inactive colliders, so register after SetActive(true).
             if (_owner != null && _collider != null)
             {
                 var ownerColliders = _owner.GetComponentsInChildren<Collider>();
                 for (int i = 0; i < ownerColliders.Length; i++)
                 {
-                    if (ownerColliders[i] != null && ownerColliders[i] != _collider)
+                    var ownerCol = ownerColliders[i];
+                    if (ownerCol != null && ownerCol != _collider && ownerCol.enabled && ownerCol.gameObject.activeInHierarchy)
                     {
-                        Physics.IgnoreCollision(_collider, ownerColliders[i], true);
+                        Physics.IgnoreCollision(_collider, ownerCol, true);
                     }
                 }
             }
 
-            gameObject.SetActive(true);
+            _rigidbody.position = origin;
+            _rigidbody.rotation = lookRot;
+            _rigidbody.angularVelocity = Vector3.zero;
+            _trailRenderer?.Clear();
 
-            Vector3 velocity = direction.normalized * speed;
+            Vector3 velocity = dirNormalized * speed;
             _rigidbody.linearVelocity = velocity;
             _currentVelocity = velocity;
             _spawnTime = Time.time;
@@ -118,9 +127,11 @@ namespace ProjectRac.Weapons
                 collision.rigidbody.AddForceAtPosition(_currentVelocity.normalized * impulseForce, hitPoint, ForceMode.Impulse);
             }
 
-            // 4. Trigger interactable target (Never weapon pickups!)
+            // 4. Trigger interactable target (Never pickups or doors)
             var interactable = collision.collider.GetComponentInParent<IInteractable>();
-            if (interactable != null && collision.collider.GetComponentInParent<ShotgunPickup>() == null)
+            if (interactable != null
+                && collision.collider.GetComponentInParent<ShotgunPickup>() == null
+                && collision.collider.GetComponentInParent<DoorController>() == null)
             {
                 interactable.Interact();
             }

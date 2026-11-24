@@ -50,9 +50,11 @@ namespace ProjectRac.Editor
             // 8. Setup Responsive uGUI Canvas (Health, Stamina, Crosshair, Ammo)
             HUDCanvasBuilder.SetupHUDCanvas(player);
 
-            // 9. Setup NavMesh & Spawn Melee Enemy (No floating bar, no NavMesh recoil)
+            // 9. Setup NavMesh & Spawn Enemies (Melee + Ranged)
             EnemyBuilder.SetupNavMesh(arenaRoot.transform);
             EnemyBuilder.SpawnMeleeEnemy(arenaRoot.transform, new Vector3(-12f, 0f, 12f));
+            var enemyPool = EnemyBuilder.EnsureEnemyProjectilePool(arenaRoot.transform);
+            EnemyBuilder.SpawnRangedEnemy(arenaRoot.transform, new Vector3(4f, 0f, 21f), enemyPool);
 
             // Mark Scene Dirty and Save
             EditorSceneManager.MarkSceneDirty(activeScene);

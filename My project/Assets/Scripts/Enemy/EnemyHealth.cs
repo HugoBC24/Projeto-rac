@@ -38,6 +38,17 @@ namespace ProjectRac.Enemy
             CacheRenderers();
         }
 
+        public void SetMaxHealth(float newMaxHealth)
+        {
+            maxHealth = Mathf.Max(1f, newMaxHealth);
+            CurrentHealth = maxHealth;
+        }
+
+        public void RefreshRenderers()
+        {
+            CacheRenderers();
+        }
+
         public void TakeDamage(float amount, Vector3 hitPoint, Vector3 hitDirection)
         {
             if (IsDead || amount <= 0f) return;
@@ -81,6 +92,7 @@ namespace ProjectRac.Enemy
         private void FlashDamageVisual()
         {
             if (!gameObject.activeInHierarchy) return;
+            if (_renderers.Count == 0) CacheRenderers();
 
             if (_flashCoroutine != null)
             {

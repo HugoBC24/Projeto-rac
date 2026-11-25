@@ -39,8 +39,8 @@ flowchart TD
 | [[weapons-and-combat]] | Contratos de combate, inventario (slots 1-2), estilingue, escopeta e pools | `IDamageable`, `IWeapon`, `PlayerWeaponInventory`, `SlingshotWeapon`, `ShotgunWeapon`, pools e projeteis |
 | [[enemy-ai]] | IA corpo a corpo e a distancia com NavMesh, percepcao LOS e pool de projeteis | `EnemyMeleeAI`, `EnemyRangedAI`, `EnemyPerception`, `EnemyRangedVisuals`, `EnemyProjectile`, `EnemyProjectilePool`, `EnemyHealth` |
 | [[ui-and-hud]] | HUD modular em uGUI com sprites configuraveis no Inspector | `CrosshairHUD`, `AmmoHUD`, `PlayerHealthBarUI`, `StaminaBarUI`, `SlingshotChargeHUD` |
-| [[editor-tooling]] | Scripts de construcao procedural de arena, portas, HUDs e prefabs no Editor | `TestArenaBuilder`, `DoorArenaBuilder`, `HUDCanvasBuilder`, `AmmoHUDBuilder`, `HealthHUDBuilder`, `EnemyBuilder`, `SlingshotPrefabGenerator` |
-| [[unity-codemode-workflow]] | Operacao do Unity Editor aberto via Code Mode (`script run` / `eval`) | `My project/AgentScripts/ProjectProbe.cs`, `ApplySceneFixes.cs`, `SpawnRangedEnemyInScene.cs`, `unity` CLI + `com.unity.pipeline` |
+| [[editor-tooling]] | Scripts de construcao procedural de arena, mansao de 2 andares, portas, HUDs e prefabs no Editor | `TestArenaBuilder`, `DoorArenaBuilder`, `MansionMapBuilder`, `MansionLayoutData`, `MansionDoorFactory`, `HUDCanvasBuilder`, `AmmoHUDBuilder`, `HealthHUDBuilder`, `EnemyBuilder`, `SlingshotPrefabGenerator` |
+| [[unity-codemode-workflow]] | Operacao do Unity Editor aberto via Code Mode (`script run` / `eval`) | `My project/AgentScripts/ProjectProbe.cs`, `ApplySceneFixes.cs`, `SpawnRangedEnemyInScene.cs`, `BuildMansionInScene.cs`, `unity` CLI + `com.unity.pipeline` |
 
 ## Contratos Centrais
 

@@ -12,6 +12,9 @@ Scripts exclusivos do Unity Editor (`Assets/Scripts/Editor/`) usados para montar
 | :--- | :---: | :--- | :--- |
 | `TestArenaBuilder.cs` | 300 | `[MenuItem("Tools/Build FPAA Test Arena")]` | Monta a arena de teste completa em `SampleScene` (plataformas incluindo `Platform_High` a `2.2m`, parede com porta via `DoorArenaBuilder`, jogador, pedestal da escopeta, `MeleeEnemy` + `RangedEnemy` + `EnemyProjectilePool`, NavMesh e HUD) |
 | `DoorArenaBuilder.cs` | 215 | Helper estatico | Constroi `WallWithDoor` (`10m x 4m`) com batente, `Door_Pivot`, `Door_Leaf` (`DoorController` + `NavMeshObstacle` + `NavMeshModifier`), macanetas e materiais URP persistentes em `Assets/Materials/Arena/` |
+| `Map/MansionMapBuilder.cs` | 212 | `[MenuItem("Tools/Build Mansion Map (Center)")]` | Constroi `MansionMap` (`30m x 21.2m`, 2 andares, escada no HALL, 13 portas interativas, teto `Roof` separavel, iluminacao interna e `NavMeshSurface` proprio) em `(0,0,0)` e move `TestArena` para `(75,0,0)` |
+| `Map/MansionLayoutData.cs` | 207 | Dados estaticos | Coordenadas calibradas da planta (1o e 2o andar, recortes de laje sem sobreposicao, escada e posicoes de luz) |
+| `Map/MansionDoorFactory.cs` | 191 | Helper estatico | Gera paredes, vaos abertos (`Archway`) e portas interativas completas (`DoorController` + `NavMeshObstacle` + `NavMeshModifier`) em qualquer orientacao |
 | `HUDCanvasBuilder.cs` | 277 | Helper estatico | Cria o Canvas uGUI principal, `CrosshairHUD`, `SlingshotChargeHUD` e `StaminaBarUI`, ligando referencias |
 | `AmmoHUDBuilder.cs` | 126 | Helper estatico | Constroi o painel de municao (`AmmoHUD`) e conecta ao inventario/armas |
 | `HealthHUDBuilder.cs` | 93 | Helper estatico | Constroi a barra de vida (`PlayerHealthBarUI`) e vincula a `PlayerHealth` |

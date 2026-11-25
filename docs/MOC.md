@@ -35,12 +35,12 @@ flowchart TD
 
 | Nota | Dominio | Scripts Principais |
 | :--- | :--- | :--- |
-| [[player-systems]] | Controle FPS, input, stamina, vida, pos-processamento e interacao (portas, gavetas, armarios e notas) | `FirstPersonController`, `FirstPersonCameraLook`, `PlayerInputHandler`, `PlayerStamina`, `PlayerHealth`, `PlayerInteraction`, `DoorController`, `DrawerController`, `CabinetController`, `InspectableNote`, `StaminaExhaustionPostProcess` |
+| [[player-systems]] | Controle FPS, camera PS2, lanterna (F), input, stamina, vida, pos-processamento e interacao (portas, gavetas, armarios por lado e notas) | `FirstPersonController`, `FirstPersonCameraLook`, `PS2CameraFeel`, `PlayerFlashlight`, `PlayerInputHandler`, `PlayerStamina`, `PlayerHealth`, `PlayerInteraction`, `DoorController`, `DrawerController`, `CabinetController`, `InspectableNote`, `StaminaExhaustionPostProcess` |
 | [[weapons-and-combat]] | Contratos de combate, inventario (slots 1-2), estilingue, escopeta e pools | `IDamageable`, `IWeapon`, `PlayerWeaponInventory`, `SlingshotWeapon`, `ShotgunWeapon`, pools e projeteis |
 | [[enemy-ai]] | IA corpo a corpo e a distancia com NavMesh, percepcao LOS e pool de projeteis | `EnemyMeleeAI`, `EnemyRangedAI`, `EnemyPerception`, `EnemyRangedVisuals`, `EnemyProjectile`, `EnemyProjectilePool`, `EnemyHealth` |
 | [[ui-and-hud]] | HUD modular em uGUI com sprites configuraveis e modal de leitura de notas | `CrosshairHUD`, `AmmoHUD`, `PlayerHealthBarUI`, `StaminaBarUI`, `SlingshotChargeHUD`, `NoteInspectionUI` |
-| [[editor-tooling]] | Scripts de construcao procedural de arena, mansao de 2 andares, colisores, props, HUDs e prefabs no Editor | `TestArenaBuilder`, `DoorArenaBuilder`, `MansionMapBuilder`, `MansionLayoutData`, `MansionDoorFactory`, `MansionColliderFixer`, `MansionPropsTestBuilder`, `HUDCanvasBuilder`, `AmmoHUDBuilder`, `HealthHUDBuilder`, `EnemyBuilder`, `SlingshotPrefabGenerator` |
-| [[unity-codemode-workflow]] | Operacao do Unity Editor aberto via Code Mode (`script run` / `eval`) | `My project/AgentScripts/ProjectProbe.cs`, `ApplySceneFixes.cs`, `SpawnRangedEnemyInScene.cs`, `BuildMansionInScene.cs`, `SetupMansionFixesAndProps.cs`, `unity` CLI + `com.unity.pipeline` |
+| [[editor-tooling]] | Scripts de construcao procedural de arena, mansao de 2 andares, visual PS2, colisores, props, HUDs e prefabs no Editor | `TestArenaBuilder`, `DoorArenaBuilder`, `PS2VisualSetupBuilder`, `MansionMapBuilder`, `MansionLayoutData`, `MansionDoorFactory`, `MansionColliderFixer`, `MansionPropsTestBuilder`, `HUDCanvasBuilder`, `AmmoHUDBuilder`, `HealthHUDBuilder`, `EnemyBuilder`, `SlingshotPrefabGenerator` |
+| [[unity-codemode-workflow]] | Operacao do Unity Editor aberto via Code Mode (`script run` / `eval`) | `My project/AgentScripts/ProjectProbe.cs`, `ApplySceneFixes.cs`, `SpawnRangedEnemyInScene.cs`, `BuildMansionInScene.cs`, `SetupMansionFixesAndProps.cs`, `ApplyPS2StyleInScene.cs`, `unity` CLI + `com.unity.pipeline` |
 
 ## Contratos Centrais
 

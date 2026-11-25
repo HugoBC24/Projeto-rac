@@ -9,13 +9,17 @@ namespace ProjectRac.Player
         [SerializeField] private Transform playerBody;
         [SerializeField] private PlayerInputHandler inputHandler;
 
-        [Header("Sensitivity Settings")]
+        [Header("Sensitivity & PS2 Weight")]
         [SerializeField] private float mouseSensitivity = 0.15f;
+        [Tooltip("Higher = snappier, 0 = raw instantaneous mouse, ~16 = weighty PS2 analog feel.")]
+        [SerializeField] private float lookSmoothing = 16f;
         [SerializeField] private float minPitch = -85f;
         [SerializeField] private float maxPitch = 85f;
         [SerializeField] private bool invertY = false;
 
+        private PS2CameraFeel _cameraFeel;
         private float _xRotation = 0f;
+        private Vector2 _smoothedLook;
 
         private void Start()
         {
@@ -29,6 +33,7 @@ namespace ProjectRac.Player
                 inputHandler = GetComponentInParent<PlayerInputHandler>();
             }
 
+            _cameraFeel = GetComponent<PS2CameraFeel>();
             LockCursor();
         }
 
@@ -36,36 +41,54 @@ namespace ProjectRac.Player
         {
             HandleCursorToggle();
             HandleLook();
+            ApplyCameraRotation();
         }
 
         private void HandleLook()
         {
             if (Cursor.lockState != CursorLockMode.Locked || inputHandler == null)
             {
+                _smoothedLook = Vector2.zero;
                 return;
             }
 
-            Vector2 lookInput = inputHandler.LookInput;
-            float mouseX = lookInput.x * mouseSensitivity;
-            float mouseY = lookInput.y * mouseSensitivity * (invertY ? 1f : -1f);
+            Vector2 rawInput = inputHandler.LookInput;
+            if (lookSmoothing > 0.01f)
+            {
+                float t = 1f - Mathf.Exp(-lookSmoothing * Time.deltaTime);
+                _smoothedLook = Vector2.Lerp(_smoothedLook, rawInput, t);
+            }
+            else
+            {
+                _smoothedLook = rawInput;
+            }
 
-            _xRotation += mouseY;
-            _xRotation = Mathf.Clamp(_xRotation, minPitch, maxPitch);
+            float mouseX = _smoothedLook.x * mouseSensitivity;
+            float mouseY = _smoothedLook.y * mouseSensitivity * (invertY ? 1f : -1f);
 
-            // Rotate camera vertically (Pitch)
-            transform.localRotation = Quaternion.Euler(_xRotation, 0f, 0f);
+            _xRotation = Mathf.Clamp(_xRotation + mouseY, minPitch, maxPitch);
 
-            // Rotate player body horizontally (Yaw)
             if (playerBody != null)
             {
                 playerBody.Rotate(Vector3.up * mouseX);
             }
         }
 
+        private void ApplyCameraRotation()
+        {
+            float roll = _cameraFeel != null ? _cameraFeel.CurrentRollAngle : 0f;
+            transform.localRotation = Quaternion.Euler(_xRotation, 0f, roll);
+        }
+
         public void AddRecoil(float pitchOffset)
         {
             _xRotation = Mathf.Clamp(_xRotation - pitchOffset, minPitch, maxPitch);
-            transform.localRotation = Quaternion.Euler(_xRotation, 0f, 0f);
+            ApplyCameraRotation();
+        }
+
+        public void SetLookSmoothing(float smoothing)
+        {
+            lookSmoothing = Mathf.Max(0f, smoothing);
         }
 
         private void HandleCursorToggle()

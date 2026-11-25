@@ -15,8 +15,11 @@ Concentra movimentacao em primeira pessoa, camera, leitura de input, stamina com
 | `FirstPersonCameraLook.cs` | 98 | Rotacao de camera FPS, recuo vertical e trava do cursor | `AddRecoil(float pitchOffset)`, `LockCursor()`, `UnlockCursor()` |
 | `PlayerStamina.cs` | 123 | Recurso de stamina (0-100), consumo em sprint/salto e estado de exaustao | `TryConsumeSprint`, `TryConsumeJump`, `RestoreStamina`, eventos `OnStaminaChanged`, `OnExhaustionChanged` |
 | `PlayerHealth.cs` | 106 | Vida do jogador (`IDamageable`), janela de invulnerabilidade e respawn | `TakeDamage`, `Heal`, `SetRespawnPosition`, eventos `OnHealthChanged`, `OnPlayerDamaged`, `OnPlayerDied` |
-| `PlayerInteraction.cs` | 115 | Raycast de interacao (tecla `E`, protegido contra duplo disparo de `Hold`) contra `IInteractable` e prompt no HUD | `BindCrosshairHUD(CrosshairHUD)` |
+| `PlayerInteraction.cs` | 126 | Raycast de interacao (tecla `E`, pausado durante leitura de notas) contra `IInteractable` e prompt no HUD | `BindCrosshairHUD(CrosshairHUD)` |
 | `DoorController.cs` (`Interaction/`) | 176 | Porta articulada (`IInteractable`) com abertura suave para o lado oposto ao jogador e `NavMeshObstacle` dinamico | `IsOpen`, `Open`, `Close`, `Toggle`, `Configure(pivot, obstacle)` |
+| `DrawerController.cs` (`Interaction/`) | 110 | Gaveta deslizante (`IInteractable`) ao longo do eixo local com damping exponencial | `IsOpen`, `Open`, `Close`, `Toggle`, `Configure(...)` |
+| `CabinetController.cs` (`Interaction/`) | 131 | Armario com 1 ou 2 portas articuladas (`IInteractable`) sincronizadas | `IsOpen`, `Open`, `Close`, `Toggle`, `Configure(...)` |
+| `InspectableNote.cs` (`Interaction/`) | 51 | Nota legivel (`IInteractable`) com titulo e texto configuraveis no Inspector que abre `NoteInspectionUI` | `NoteTitle`, `NoteBody`, `Configure(...)` |
 | `StaminaExhaustionPostProcess.cs` | 229 | Volume URP de exaustao (lens distortion, vignette, film grain) abaixo de stamina `35` | `CurrentWeight`, `TargetWeight`, `BindPlayerStamina(PlayerStamina)` |
 
 ## Fluxo de Dados

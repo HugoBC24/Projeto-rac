@@ -45,6 +45,17 @@ namespace ProjectRac.Player
 
         private void Update()
         {
+            if (NoteInspectionUI.IsInspecting)
+            {
+                if (_currentInteractable != null)
+                {
+                    _currentInteractable = null;
+                    _currentPrompt = "";
+                    crosshairHUD?.SetTargetingInteractable(false, "");
+                }
+                return;
+            }
+
             CheckForInteractable();
             HandleInteraction();
         }

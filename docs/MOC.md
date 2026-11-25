@@ -35,17 +35,17 @@ flowchart TD
 
 | Nota | Dominio | Scripts Principais |
 | :--- | :--- | :--- |
-| [[player-systems]] | Controle FPS, input, stamina, vida, pos-processamento e interacao (incluindo portas) | `FirstPersonController`, `FirstPersonCameraLook`, `PlayerInputHandler`, `PlayerStamina`, `PlayerHealth`, `PlayerInteraction`, `DoorController`, `StaminaExhaustionPostProcess` |
+| [[player-systems]] | Controle FPS, input, stamina, vida, pos-processamento e interacao (portas, gavetas, armarios e notas) | `FirstPersonController`, `FirstPersonCameraLook`, `PlayerInputHandler`, `PlayerStamina`, `PlayerHealth`, `PlayerInteraction`, `DoorController`, `DrawerController`, `CabinetController`, `InspectableNote`, `StaminaExhaustionPostProcess` |
 | [[weapons-and-combat]] | Contratos de combate, inventario (slots 1-2), estilingue, escopeta e pools | `IDamageable`, `IWeapon`, `PlayerWeaponInventory`, `SlingshotWeapon`, `ShotgunWeapon`, pools e projeteis |
 | [[enemy-ai]] | IA corpo a corpo e a distancia com NavMesh, percepcao LOS e pool de projeteis | `EnemyMeleeAI`, `EnemyRangedAI`, `EnemyPerception`, `EnemyRangedVisuals`, `EnemyProjectile`, `EnemyProjectilePool`, `EnemyHealth` |
-| [[ui-and-hud]] | HUD modular em uGUI com sprites configuraveis no Inspector | `CrosshairHUD`, `AmmoHUD`, `PlayerHealthBarUI`, `StaminaBarUI`, `SlingshotChargeHUD` |
-| [[editor-tooling]] | Scripts de construcao procedural de arena, mansao de 2 andares, portas, HUDs e prefabs no Editor | `TestArenaBuilder`, `DoorArenaBuilder`, `MansionMapBuilder`, `MansionLayoutData`, `MansionDoorFactory`, `HUDCanvasBuilder`, `AmmoHUDBuilder`, `HealthHUDBuilder`, `EnemyBuilder`, `SlingshotPrefabGenerator` |
-| [[unity-codemode-workflow]] | Operacao do Unity Editor aberto via Code Mode (`script run` / `eval`) | `My project/AgentScripts/ProjectProbe.cs`, `ApplySceneFixes.cs`, `SpawnRangedEnemyInScene.cs`, `BuildMansionInScene.cs`, `unity` CLI + `com.unity.pipeline` |
+| [[ui-and-hud]] | HUD modular em uGUI com sprites configuraveis e modal de leitura de notas | `CrosshairHUD`, `AmmoHUD`, `PlayerHealthBarUI`, `StaminaBarUI`, `SlingshotChargeHUD`, `NoteInspectionUI` |
+| [[editor-tooling]] | Scripts de construcao procedural de arena, mansao de 2 andares, colisores, props, HUDs e prefabs no Editor | `TestArenaBuilder`, `DoorArenaBuilder`, `MansionMapBuilder`, `MansionLayoutData`, `MansionDoorFactory`, `MansionColliderFixer`, `MansionPropsTestBuilder`, `HUDCanvasBuilder`, `AmmoHUDBuilder`, `HealthHUDBuilder`, `EnemyBuilder`, `SlingshotPrefabGenerator` |
+| [[unity-codemode-workflow]] | Operacao do Unity Editor aberto via Code Mode (`script run` / `eval`) | `My project/AgentScripts/ProjectProbe.cs`, `ApplySceneFixes.cs`, `SpawnRangedEnemyInScene.cs`, `BuildMansionInScene.cs`, `SetupMansionFixesAndProps.cs`, `unity` CLI + `com.unity.pipeline` |
 
 ## Contratos Centrais
 
 - `ProjectRac.Combat.IDamageable`: `void TakeDamage(float amount, Vector3 hitPoint, Vector3 hitDirection)` — implementado por `PlayerHealth` e `EnemyHealth`.
-- `ProjectRac.Interaction.IInteractable`: `string GetInteractionPrompt()`, `void Interact()` — implementado por `ShotgunPickup`, `DoorController` e `InteractableTestObject`.
+- `ProjectRac.Interaction.IInteractable`: `string GetInteractionPrompt()`, `void Interact()` — implementado por `ShotgunPickup`, `DoorController`, `DrawerController`, `CabinetController`, `InspectableNote` e `InteractableTestObject`.
 - `ProjectRac.Weapons.IWeapon`: `WeaponName`, `SlotIndex`, `IsEquipped`, `Equip()`, `Unequip()` — implementado por `SlingshotWeapon` e `ShotgunWeapon`.
 
 ## Knowledge Items (KIs)

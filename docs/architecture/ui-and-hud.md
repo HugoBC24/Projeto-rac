@@ -15,6 +15,7 @@ HUD em **uGUI** (`com.unity.ugui 2.6.0`) construido por builders de Editor e per
 | `SlingshotChargeHUD.cs` | 143 | Barra de carregamento do estilingue com sprites `bg`/`fill` customizaveis | [[weapons-and-combat]] (`SlingshotWeapon.BindChargeHUD`) |
 | `PlayerHealthBarUI.cs` | 101 | Barra e texto de vida do jogador | [[player-systems]] (`PlayerHealth.OnHealthChanged`) |
 | `StaminaBarUI.cs` | 221 | Barra de stamina com feedback visual de consumo e exaustao | [[player-systems]] (`PlayerStamina.OnStaminaChanged` / `OnExhaustionChanged`) |
+| `NoteInspectionUI.cs` | 165 | Painel modal de leitura de notas (`E` / `Esc`) com bloqueio temporario de movimento, camera e armas | [[player-systems]] (`InspectableNote.Interact`) |
 
 ## Sprites em `Assets/Art/UI/`
 

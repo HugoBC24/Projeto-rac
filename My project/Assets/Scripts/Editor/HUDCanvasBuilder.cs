@@ -75,6 +75,9 @@ namespace ProjectRac.Editor
             {
                 inventory.BindAmmoHUD(ammoHUD);
             }
+
+            // 5. Note Inspection Modal HUD
+            Map.MansionPropsTestBuilder.BuildNoteInspectionUI(canvasObj.transform);
         }
 
         private static void BuildStaminaHUD(Transform parent, GameObject player)

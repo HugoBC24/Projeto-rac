@@ -38,7 +38,7 @@ namespace ProjectRac.Editor.Map
 
             GameObject wallGroup = new GameObject(def.Name);
             wallGroup.transform.SetParent(parent, false);
-            wallGroup.transform.SetPositionAndRotation(startPos, wallRot);
+            wallGroup.transform.SetLocalPositionAndRotation(startPos, wallRot);
 
             float halfOpen = def.OpeningWidth * 0.5f;
             float openStart = Mathf.Clamp(def.OpeningOffsetFromStart - halfOpen, 0.1f, totalLength - def.OpeningWidth - 0.1f);
@@ -141,7 +141,7 @@ namespace ProjectRac.Editor.Map
             GameObject obj = GameObject.CreatePrimitive(PrimitiveType.Cube);
             obj.name = name;
             obj.transform.SetParent(parent, false);
-            obj.transform.SetPositionAndRotation(pos, rot);
+            obj.transform.SetLocalPositionAndRotation(pos, rot);
             obj.transform.localScale = scale;
             ApplyPersistentColor(obj, color);
             return obj;

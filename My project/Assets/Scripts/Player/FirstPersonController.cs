@@ -13,7 +13,7 @@ namespace ProjectRac.Player
 
         [Header("Jumping & Gravity")]
         [SerializeField] private float jumpHeight = 0.85f;
-        [SerializeField] private float gravity = -19.62f;
+        [SerializeField] private float gravity = -20;
         [SerializeField] private float jumpLockoutDuration = 0.15f;
 
         [Header("Ground Check")]

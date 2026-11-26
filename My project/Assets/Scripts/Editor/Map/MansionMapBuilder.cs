@@ -24,10 +24,8 @@ namespace ProjectRac.Editor.Map
             Undo.IncrementCurrentGroup();
             int undoGroup = Undo.GetCurrentGroup();
 
-            // 1. Move existing TestArena cleanly to the side so the scene center is free.
             RelocateTestArena();
 
-            // 2. Create fresh MansionMap centered at (0, 0, 0).
             GameObject existing = GameObject.Find(MansionRootName);
             if (existing != null) Undo.DestroyObjectImmediate(existing);
 
@@ -35,7 +33,6 @@ namespace ProjectRac.Editor.Map
             root.transform.position = Vector3.zero;
             Undo.RegisterCreatedObjectUndo(root, "Create Mansion Map");
 
-            // 3. Floor 1 (ground level, y = 0)
             GameObject floor1Root = CreateGroup(root.transform, "Floor1");
             BuildSlabs(floor1Root.transform, MansionLayoutData.Floor1Slabs, -MansionLayoutData.SlabThickness * 0.5f, Floor1Color);
             foreach (var wall in MansionLayoutData.Floor1Walls)
@@ -43,30 +40,17 @@ namespace ProjectRac.Editor.Map
                 MansionDoorFactory.BuildWall(floor1Root.transform, wall, 0f);
             }
 
-            // 4. Staircase rising inside HALL from y = 0 to y = Floor2SurfaceY
             BuildStaircase(root.transform);
 
-            // 5. Floor 2 (upper level, walkable surface at y = Floor2SurfaceY = 3.85m)
             GameObject floor2Root = CreateGroup(root.transform, "Floor2");
-            float floor2SlabCenterY = MansionLayoutData.FloorHeight + (MansionLayoutData.SlabThickness * 0.5f);
-            BuildSlabs(floor2Root.transform, MansionLayoutData.Floor2Slabs, floor2SlabCenterY, Floor2Color);
-            foreach (var wall in MansionLayoutData.Floor2Walls)
-            {
-                MansionDoorFactory.BuildWall(floor2Root.transform, wall, MansionLayoutData.Floor2SurfaceY);
-            }
+            BuildFloor2Content(floor2Root.transform);
 
-            // 6. Separable Roof (easy to toggle off in Hierarchy for top-down inspection)
             GameObject roofRoot = CreateGroup(root.transform, "Roof");
             float roofCenterY = MansionLayoutData.Floor2SurfaceY + MansionLayoutData.FloorHeight + (MansionLayoutData.SlabThickness * 0.5f);
             BuildSlabs(roofRoot.transform, MansionLayoutData.RoofSlabs, roofCenterY, RoofColor);
 
-            // 7. Invisible ceiling point lights (zero meshes/props inside rooms)
             BuildInteriorLighting(root.transform);
-
-            // 8. Bake dedicated NavMesh on MansionMap (Children only, isolated from TestArena)
             BakeChildrenNavMesh(root);
-
-            // 9. Position Player inside the 1st-floor HALL facing North (+Z)
             PositionPlayerInHall();
 
             AssetDatabase.SaveAssets();
@@ -76,6 +60,69 @@ namespace ProjectRac.Editor.Map
 
             Debug.Log("[MansionMapBuilder] Mansao de 2 andares montada em (0,0,0) e TestArena movida para (75,0,0).");
             return root;
+        }
+
+        [MenuItem("Tools/Upgrade Mansion Floor 2 (Railings & Balconies)")]
+        public static bool UpgradeFloor2InPlace()
+        {
+            GameObject root = GameObject.Find(MansionRootName);
+            if (root == null)
+            {
+                Debug.LogWarning("[MansionMapBuilder] MansionMap nao encontrado na cena.");
+                return false;
+            }
+
+            var activeScene = EditorSceneManager.GetActiveScene();
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+
+            // Rebuild only Floor2 under the existing MansionMap so its scale (e.g. 1.5, 1, 1.5),
+            // Floor1, Staircase, Roof, Lighting, and Props remain completely untouched.
+            Transform oldFloor2 = root.transform.Find("Floor2");
+            int siblingIdx = oldFloor2 != null ? oldFloor2.GetSiblingIndex() : 2;
+            if (oldFloor2 != null) Undo.DestroyObjectImmediate(oldFloor2.gameObject);
+
+            GameObject floor2Root = CreateGroup(root.transform, "Floor2");
+            floor2Root.transform.SetSiblingIndex(siblingIdx);
+            Undo.RegisterCreatedObjectUndo(floor2Root, "Rebuild Floor2 With Railings and Balconies");
+
+            BuildFloor2Content(floor2Root.transform);
+            Physics.SyncTransforms();
+            BakeChildrenNavMesh(root);
+
+            AssetDatabase.SaveAssets();
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            EditorSceneManager.SaveScene(activeScene);
+            Undo.CollapseUndoOperations(undoGroup);
+
+            Debug.Log("[MansionMapBuilder] 2o andar atualizado com corrimao no Hall e 2 varandas cobertas sem porta.");
+            return true;
+        }
+
+        private static void BuildFloor2Content(Transform floor2Root)
+        {
+            float floor2SlabCenterY = MansionLayoutData.FloorHeight + (MansionLayoutData.SlabThickness * 0.5f);
+            BuildSlabs(floor2Root, MansionLayoutData.Floor2Slabs, floor2SlabCenterY, Floor2Color);
+
+            foreach (var wall in MansionLayoutData.Floor2Walls)
+            {
+                MansionDoorFactory.BuildWall(floor2Root, wall, MansionLayoutData.Floor2SurfaceY);
+            }
+
+            GameObject railingsRoot = CreateGroup(floor2Root, "Railings");
+            foreach (var railing in MansionLayoutData.Floor2Railings)
+            {
+                MansionRailingFactory.BuildRailing(railingsRoot.transform, railing, MansionLayoutData.Floor2SurfaceY);
+            }
+
+            for (int i = 0; i < MansionLayoutData.Floor2BalconyColumns.Length; i++)
+            {
+                MansionRailingFactory.BuildBalconyColumn(
+                    railingsRoot.transform,
+                    $"Balcony_Column_{i + 1:00}",
+                    MansionLayoutData.Floor2BalconyColumns[i],
+                    MansionLayoutData.Floor2SurfaceY);
+            }
         }
 
         private static void BuildSlabs(Transform parent, SlabRect[] rects, float centerY, Color color)
@@ -102,7 +149,6 @@ namespace ProjectRac.Editor.Map
             float width = MansionLayoutData.StairWidth;
             float centerX = MansionLayoutData.StairCenterX;
 
-            // Visual steps without individual colliders (smooth ramp collider below handles FPS movement).
             for (int i = 0; i < steps; i++)
             {
                 float topY = (i + 1) * stepRise;
@@ -116,7 +162,6 @@ namespace ProjectRac.Editor.Map
                     removeCollider: true);
             }
 
-            // Continuous ramp collider aligned with the step nosings so walking/sprinting up has zero camera jitter.
             float slopeLength = Mathf.Sqrt(totalRun * totalRun + totalRise * totalRise);
             float pitchDeg = Mathf.Atan2(totalRise, totalRun) * Mathf.Rad2Deg;
             float rampThickness = 0.20f;
@@ -125,16 +170,15 @@ namespace ProjectRac.Editor.Map
             rampColliderObj.transform.SetParent(stairsRoot.transform, false);
             Quaternion rampRot = Quaternion.Euler(-pitchDeg, 0f, 0f);
             Vector3 rampMid = new Vector3(centerX, totalRise * 0.5f, (MansionLayoutData.StairStartZ + MansionLayoutData.StairEndZ) * 0.5f);
-            rampColliderObj.transform.SetPositionAndRotation(rampMid + (rampRot * new Vector3(0f, -rampThickness * 0.5f, 0f)), rampRot);
+            rampColliderObj.transform.SetLocalPositionAndRotation(rampMid + (rampRot * new Vector3(0f, -rampThickness * 0.5f, 0f)), rampRot);
             var rampBox = rampColliderObj.AddComponent<BoxCollider>();
             rampBox.size = new Vector3(width, rampThickness, slopeLength);
 
-            // Inner handrail along the open (East) side of the staircase.
             float railX = centerX + (width * 0.5f) + 0.04f;
             GameObject rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
             rail.name = "Stair_Handrail";
             rail.transform.SetParent(stairsRoot.transform, false);
-            rail.transform.SetPositionAndRotation(
+            rail.transform.SetLocalPositionAndRotation(
                 new Vector3(railX, (totalRise * 0.5f) + 0.92f, (MansionLayoutData.StairStartZ + MansionLayoutData.StairEndZ) * 0.5f),
                 rampRot);
             rail.transform.localScale = new Vector3(0.08f, 0.10f, slopeLength);
@@ -158,8 +202,8 @@ namespace ProjectRac.Editor.Map
 
                 var light = lightObj.AddComponent<Light>();
                 light.type = LightType.Point;
-                light.color = new Color(1f, 0.95f, 0.86f);
-                light.intensity = 10f;
+                light.color = new Color(1f, 0.91f, 0.74f);
+                light.intensity = 8.5f;
                 light.range = 14f;
                 light.shadows = LightShadows.None;
             }

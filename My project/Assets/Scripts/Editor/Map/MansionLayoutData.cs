@@ -40,6 +40,24 @@ namespace ProjectRac.Editor.Map
         }
     }
 
+    public readonly struct RailingDef
+    {
+        public readonly string Name;
+        public readonly Vector2 Start;
+        public readonly Vector2 End;
+        public readonly float GapOffsetFromStart;
+        public readonly float GapWidth;
+
+        public RailingDef(string name, float x1, float z1, float x2, float z2, float gapOffset = 0f, float gapWidth = 0f)
+        {
+            Name = name;
+            Start = new Vector2(x1, z1);
+            End = new Vector2(x2, z2);
+            GapOffsetFromStart = gapOffset;
+            GapWidth = gapWidth;
+        }
+    }
+
     public readonly struct SlabRect
     {
         public readonly string Name;
@@ -82,7 +100,7 @@ namespace ProjectRac.Editor.Map
         public const float XHallEast = 3.00f;
         public const float XVoidEast = 3.20f;
 
-        // Staircase in HALL aligned directly to Floor 2 north stairwell archway.
+        // Staircase in HALL aligned directly to Floor 2 north stairwell opening.
         public const float StairCenterX = -3.60f;
         public const float StairWidth = 1.70f;
         public const float StairStartZ = -5.40f;
@@ -106,6 +124,7 @@ namespace ProjectRac.Editor.Map
             new SlabRect("Floor2_Slab_East", XVoidEast, XEast, ZF2SouthCorr, StairEndZ)
         };
 
+        // Full roof covers all rooms and both South covered balconies.
         public static readonly SlabRect[] RoofSlabs =
         {
             new SlabRect("Roof_Slab", XWest, XEast, ZSouth, ZNorth)
@@ -147,11 +166,11 @@ namespace ProjectRac.Editor.Map
 
         public static readonly WallDef[] Floor2Walls =
         {
-            // Outer perimeter
+            // Outer perimeter (shortened at South corners so Quarto Filha and Quarto Pais open onto covered balconies)
             new WallDef("F2_Ext_North", XWest, ZNorth, XEast, ZNorth),
-            new WallDef("F2_Ext_South", XWest, ZSouth, XEast, ZSouth),
-            new WallDef("F2_Ext_West", XWest, ZSouth, XWest, ZNorth),
-            new WallDef("F2_Ext_East", XEast, ZSouth, XEast, ZNorth),
+            new WallDef("F2_Ext_South_Corridor", -6.50f, ZSouth, 5.15f, ZSouth),
+            new WallDef("F2_Ext_West", XWest, ZF2SouthCorr, XWest, ZNorth),
+            new WallDef("F2_Ext_East", XEast, ZF2SouthCorr, XEast, ZNorth),
 
             // Upper row rooms (Quarto Maid, Suite, Quarto Pais upper wing)
             new WallDef("F2_QuartoMaid_South", XWest, ZUpperCorr, -0.40f, ZUpperCorr,
@@ -162,46 +181,65 @@ namespace ProjectRac.Editor.Map
                 OpeningKind.Door, openingOffset: 3.70f, openingWidth: DoorWidth, doorName: "Door_QuartoPais_Suite"),
             new WallDef("F2_Pais_NorthStub", 8.15f, ZMidWall, 8.15f, ZUpperCorr),
 
-            // Mid horizontal band
+            // Mid horizontal band (Hall mezzanine uses Floor2Railings instead of solid walls)
             new WallDef("F2_QuartoFilha_North", XWest, ZMidWall, -6.50f, ZMidWall),
-            new WallDef("F2_Void_North", XHallWest, ZMidWall, XVoidEast, ZMidWall,
-                OpeningKind.Archway, openingOffset: 1.00f, openingWidth: 1.85f),
             new WallDef("F2_QuartoPais_North", 5.15f, ZMidWall, 8.15f, ZMidWall,
                 OpeningKind.Door, openingOffset: 1.50f, openingWidth: DoorWidth, doorName: "Door_QuartoPais"),
 
-            // Lower horizontal band (South corridor / balcony divider)
+            // Balcony entrances (open archways, NO doors on either balcony)
             new WallDef("F2_QuartoFilha_South", XWest, ZF2SouthCorr, -6.50f, ZF2SouthCorr,
-                OpeningKind.Door, openingOffset: 4.20f, openingWidth: DoorWidth, doorName: "Door_QuartoFilha_Sul"),
-            new WallDef("F2_Void_South", XHallWest, ZF2SouthCorr, XVoidEast, ZF2SouthCorr),
-            new WallDef("F2_QuartoPais_South", 5.15f, ZF2SouthCorr, XEast, ZF2SouthCorr),
+                OpeningKind.Archway, openingOffset: 4.25f, openingWidth: 2.00f),
+            new WallDef("F2_QuartoPais_South", 5.15f, ZF2SouthCorr, XEast, ZF2SouthCorr,
+                OpeningKind.Archway, openingOffset: 4.925f, openingWidth: 2.00f),
 
-            // Vertical dividers for Quarto Filha, Stairwell Void, and Quarto Pais
+            // Vertical dividers for Quarto Filha and Quarto Pais (separating balconies from interior South corridor)
             new WallDef("F2_QuartoFilha_East", -6.50f, ZSouth, -6.50f, ZMidWall,
                 OpeningKind.Door, openingOffset: 6.00f, openingWidth: DoorWidth, doorName: "Door_QuartoFilha_Corredor"),
-            new WallDef("F2_Void_West", XHallWest, ZF2SouthCorr, XHallWest, ZMidWall),
-            new WallDef("F2_Void_East", XVoidEast, ZF2SouthCorr, XVoidEast, ZMidWall),
             new WallDef("F2_QuartoPais_West", 5.15f, ZSouth, 5.15f, ZMidWall)
+        };
+
+        public static readonly RailingDef[] Floor2Railings =
+        {
+            // Open mezzanine railing overlooking the 1st-floor HALL (gap at North-West stair landing)
+            new RailingDef("F2_Railing_Void_North", XHallWest, ZMidWall, XVoidEast, ZMidWall, gapOffset: 1.00f, gapWidth: 1.85f),
+            new RailingDef("F2_Railing_Void_South", XHallWest, ZF2SouthCorr, XVoidEast, ZF2SouthCorr),
+            new RailingDef("F2_Railing_Void_West", XHallWest, ZF2SouthCorr, XHallWest, ZMidWall),
+            new RailingDef("F2_Railing_Void_East", XVoidEast, ZF2SouthCorr, XVoidEast, ZMidWall),
+
+            // Quarto da Filha covered balcony outer railings (South & West)
+            new RailingDef("F2_Balcony_Filha_South", XWest, ZSouth, -6.50f, ZSouth),
+            new RailingDef("F2_Balcony_Filha_West", XWest, ZSouth, XWest, ZF2SouthCorr),
+
+            // Quarto dos Pais covered balcony outer railings (South & East)
+            new RailingDef("F2_Balcony_Pais_South", 5.15f, ZSouth, XEast, ZSouth),
+            new RailingDef("F2_Balcony_Pais_East", XEast, ZSouth, XEast, ZF2SouthCorr)
+        };
+
+        public static readonly Vector2[] Floor2BalconyColumns =
+        {
+            new Vector2(XWest, ZSouth),
+            new Vector2(XEast, ZSouth)
         };
 
         public static readonly Vector3[] Floor1LightPositions =
         {
-            new Vector3(-9.8f, 3.25f, 6.4f),   // Cozinha
-            new Vector3(-0.5f, 3.25f, 7.6f),   // Lavanderia
-            new Vector3(9.3f, 3.25f, 6.4f),    // Biblioteca
-            new Vector3(-9.8f, 3.25f, -4.2f),  // Sala de Jantar
-            new Vector3(-0.8f, 3.25f, -4.5f),  // Hall
-            new Vector3(9.0f, 3.25f, -4.2f),   // Sala de Estar
-            new Vector3(1.2f, 3.25f, 3.4f)     // Corredor superior F1
+            new Vector3(-9.8f, 3.25f, 6.4f),
+            new Vector3(-0.5f, 3.25f, 7.6f),
+            new Vector3(9.3f, 3.25f, 6.4f),
+            new Vector3(-9.8f, 3.25f, -4.2f),
+            new Vector3(-0.8f, 3.25f, -4.5f),
+            new Vector3(9.0f, 3.25f, -4.2f),
+            new Vector3(1.2f, 3.25f, 3.4f)
         };
 
         public static readonly Vector3[] Floor2LightPositions =
         {
-            new Vector3(-7.7f, 7.10f, 7.6f),   // Quarto Maid
-            new Vector3(3.9f, 7.10f, 7.6f),    // Suite anexa
-            new Vector3(10.5f, 7.10f, -2.5f),  // Quarto Pais
-            new Vector3(-10.8f, 7.10f, -3.2f), // Quarto Filha
-            new Vector3(-0.5f, 7.10f, 3.4f),   // Corredor Norte F2
-            new Vector3(-0.7f, 7.10f, -9.6f)   // Corredor Sul F2
+            new Vector3(-7.7f, 7.10f, 7.6f),
+            new Vector3(3.9f, 7.10f, 7.6f),
+            new Vector3(10.5f, 7.10f, -2.5f),
+            new Vector3(-10.8f, 7.10f, -3.2f),
+            new Vector3(-0.5f, 7.10f, 3.4f),
+            new Vector3(-0.7f, 7.10f, -9.6f)
         };
     }
 }

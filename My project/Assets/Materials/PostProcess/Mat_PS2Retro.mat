@@ -25,16 +25,16 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _BlackCrush: 0.025
-    - _ChromaOffset: 0.001
-    - _ColorSteps: 20
-    - _DitherStrength: 0.85
+    - _BlackCrush: 0.012
+    - _ChromaOffset: 0.0005
+    - _ColorSteps: 28
+    - _DitherStrength: 0.45
     - _EnablePillarbox: 0
-    - _NoiseIntensity: 0.045
-    - _ScanlineCount: 270
-    - _ScanlineIntensity: 0.15
-    - _TargetHeight: 270
-    - _TargetWidth: 480
+    - _NoiseIntensity: 0.012
+    - _ScanlineCount: 360
+    - _ScanlineIntensity: 0.08
+    - _TargetHeight: 360
+    - _TargetWidth: 640
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1

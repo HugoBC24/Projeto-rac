@@ -11,19 +11,19 @@ namespace ProjectRac.Player
         [SerializeField] private bool applyRetroFovOnAwake = true;
 
         [Header("Grounded Head-Bob")]
-        [SerializeField] private float walkBobFrequency = 7.8f;
-        [SerializeField] private float sprintBobFrequency = 11.2f;
-        [SerializeField] private float walkBobAmplitudeY = 0.048f;
-        [SerializeField] private float sprintBobAmplitudeY = 0.088f;
-        [SerializeField] private float bobAmplitudeX = 0.024f;
+        [SerializeField] private float walkBobFrequency = 7.2f;
+        [SerializeField] private float sprintBobFrequency = 10.4f;
+        [SerializeField] private float walkBobAmplitudeY = 0.026f;
+        [SerializeField] private float sprintBobAmplitudeY = 0.048f;
+        [SerializeField] private float bobAmplitudeX = 0.013f;
         [SerializeField] private float bobBlendSpeed = 10f;
 
         [Header("Idle Breathing Sway")]
         [SerializeField] private float idleSwayFrequency = 1.4f;
-        [SerializeField] private float idleSwayAmplitude = 0.008f;
+        [SerializeField] private float idleSwayAmplitude = 0.004f;
 
         [Header("Strafe Tilt (Roll)")]
-        [SerializeField] private float maxStrafeRoll = 1.5f;
+        [SerializeField] private float maxStrafeRoll = 0.8f;
         [SerializeField] private float rollSmoothSpeed = 9f;
 
         public float CurrentRollAngle { get; private set; }
@@ -65,6 +65,18 @@ namespace ProjectRac.Player
             retroFov = Mathf.Clamp(fov, 35f, 90f);
             if (_camera == null) _camera = GetComponent<Camera>();
             if (_camera != null) _camera.fieldOfView = retroFov;
+        }
+
+        public void ApplySubtlePreset()
+        {
+            walkBobFrequency = 7.2f;
+            sprintBobFrequency = 10.4f;
+            walkBobAmplitudeY = 0.026f;
+            sprintBobAmplitudeY = 0.048f;
+            bobAmplitudeX = 0.013f;
+            idleSwayAmplitude = 0.004f;
+            maxStrafeRoll = 0.8f;
+            SetRetroFov(58f);
         }
 
         private void UpdateHeadBob()

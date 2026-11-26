@@ -113,22 +113,38 @@ namespace ProjectRac.Interaction
         {
             if (cam == null) return CabinetSide.Right;
 
-            // In cabinet local space (+Z faces the player), localX < 0 is the player's RIGHT and localX > 0 is the player's LEFT.
-            Vector3 camLocal = transform.InverseTransformPoint(cam.transform.position);
-            if (Mathf.Abs(camLocal.x) > 0.05f)
+            // Decide strictly by where the center of the player's camera (crosshair ray) is aiming.
+            Ray aimRay = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            if (Physics.Raycast(aimRay, out RaycastHit hit, 4.5f, ~0, QueryTriggerInteraction.Ignore))
             {
-                return camLocal.x < 0f ? CabinetSide.Right : CabinetSide.Left;
+                if (hit.transform == transform || hit.transform.IsChildOf(transform))
+                {
+                    if (_viewerLeftPivot != null && (hit.transform == _viewerLeftPivot || hit.transform.IsChildOf(_viewerLeftPivot)))
+                    {
+                        return CabinetSide.Left;
+                    }
+
+                    if (_viewerRightPivot != null && (hit.transform == _viewerRightPivot || hit.transform.IsChildOf(_viewerRightPivot)))
+                    {
+                        return CabinetSide.Right;
+                    }
+
+                    // Aiming at cabinet interior/shelves/frame: localX > 0 is viewer's Left, localX <= 0 is viewer's Right.
+                    Vector3 localHit = transform.InverseTransformPoint(hit.point);
+                    return localHit.x > 0f ? CabinetSide.Left : CabinetSide.Right;
+                }
             }
 
-            // Dead-center tie-breaker: project where the camera crosshair meets the front door plane (localZ = 0.29).
-            Vector3 dirLocal = transform.InverseTransformDirection(cam.transform.forward);
+            // Fallback: intersect center aim ray with cabinet front door plane (localZ = 0.29).
+            Vector3 originLocal = transform.InverseTransformPoint(aimRay.origin);
+            Vector3 dirLocal = transform.InverseTransformDirection(aimRay.direction);
             if (Mathf.Abs(dirLocal.z) > 0.001f)
             {
-                float tPlane = (0.29f - camLocal.z) / dirLocal.z;
+                float tPlane = (0.29f - originLocal.z) / dirLocal.z;
                 if (tPlane > 0f)
                 {
-                    float hitX = camLocal.x + dirLocal.x * tPlane;
-                    return hitX <= 0f ? CabinetSide.Right : CabinetSide.Left;
+                    float hitX = originLocal.x + dirLocal.x * tPlane;
+                    return hitX > 0f ? CabinetSide.Left : CabinetSide.Right;
                 }
             }
 

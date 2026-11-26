@@ -13,18 +13,22 @@ public static class ApplyPS2StyleInScene
         PS2VisualSetupBuilder.ApplyPS2Style();
 
         var cam = Camera.main;
+        var fps = Object.FindAnyObjectByType<FirstPersonController>();
         var pcRenderer = AssetDatabase.LoadAssetAtPath<UniversalRendererData>("Assets/Settings/PC_Renderer.asset");
         var ps2Feature = pcRenderer?.rendererFeatures
             .OfType<FullScreenPassRendererFeature>()
             .FirstOrDefault(f => f != null && f.name == "PS2RetroPostProcess");
         var vol = GameObject.Find("PS2_GlobalVolume")?.GetComponent<Volume>();
+        int missingOnCam = cam != null ? GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(cam.gameObject) : -1;
 
         return new
         {
             ok = true,
             cameraFov = cam?.fieldOfView,
             hasCameraFeel = cam?.GetComponent<PS2CameraFeel>() != null,
-            hasFlashlight = cam?.GetComponent<PlayerFlashlight>() != null,
+            hasFlashlightPivot = cam?.transform.Find("FlashlightPivot") != null,
+            missingScriptsOnCam = missingOnCam,
+            jumpHeight = fps?.JumpHeight,
             hasFeature = ps2Feature != null && ps2Feature.isActive && ps2Feature.passMaterial != null,
             volumePriority = vol?.priority,
             fogDensity = RenderSettings.fogDensity

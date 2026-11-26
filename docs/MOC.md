@@ -35,7 +35,7 @@ flowchart TD
 
 | Nota | Dominio | Scripts Principais |
 | :--- | :--- | :--- |
-| [[player-systems]] | Controle FPS, camera PS2, lanterna (F), input, stamina, vida, pos-processamento e interacao (portas, gavetas, armarios por lado e notas) | `FirstPersonController`, `FirstPersonCameraLook`, `PS2CameraFeel`, `PlayerFlashlight`, `PlayerInputHandler`, `PlayerStamina`, `PlayerHealth`, `PlayerInteraction`, `DoorController`, `DrawerController`, `CabinetController`, `InspectableNote`, `StaminaExhaustionPostProcess` |
+| [[player-systems]] | Controle FPS, camera PS2, input, stamina, vida, pos-processamento e interacao (portas, gavetas, armarios pela mira e notas) | `FirstPersonController`, `FirstPersonCameraLook`, `PS2CameraFeel`, `PlayerInputHandler`, `PlayerStamina`, `PlayerHealth`, `PlayerInteraction`, `DoorController`, `DrawerController`, `CabinetController`, `InspectableNote`, `StaminaExhaustionPostProcess` |
 | [[weapons-and-combat]] | Contratos de combate, inventario (slots 1-2), estilingue, escopeta e pools | `IDamageable`, `IWeapon`, `PlayerWeaponInventory`, `SlingshotWeapon`, `ShotgunWeapon`, pools e projeteis |
 | [[enemy-ai]] | IA corpo a corpo e a distancia com NavMesh, percepcao LOS e pool de projeteis | `EnemyMeleeAI`, `EnemyRangedAI`, `EnemyPerception`, `EnemyRangedVisuals`, `EnemyProjectile`, `EnemyProjectilePool`, `EnemyHealth` |
 | [[ui-and-hud]] | HUD modular em uGUI com sprites configuraveis e modal de leitura de notas | `CrosshairHUD`, `AmmoHUD`, `PlayerHealthBarUI`, `StaminaBarUI`, `SlingshotChargeHUD`, `NoteInspectionUI` |

@@ -29,15 +29,15 @@ namespace ProjectRac.Editor
 
             ConfigureURPAsset("Assets/Settings/PC_RPAsset.asset");
             ConfigureGlobalVolume();
-            ConfigureHorrorAtmosphereAndLighting();
-            ConfigurePS2CameraAndFlashlight();
+            ConfigureBalancedAtmosphereAndLighting();
+            ConfigurePS2CameraAndJump();
 
             AssetDatabase.SaveAssets();
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             Undo.CollapseUndoOperations(undoGroup);
 
-            Debug.Log("[PS2VisualSetupBuilder] Visual e camera estilo PS2 (Stay Out of the House / Haneko) aplicados!");
+            Debug.Log("[PS2VisualSetupBuilder] Visual/camera PS2 suavizado, lanterna removida e pulo ajustado.");
         }
 
         private static Material EnsureRetroMaterial()
@@ -60,15 +60,17 @@ namespace ProjectRac.Editor
                 mat.shader = shader;
             }
 
-            mat.SetFloat("_TargetWidth", 480f);
-            mat.SetFloat("_TargetHeight", 270f);
-            mat.SetFloat("_ColorSteps", 20f);
-            mat.SetFloat("_DitherStrength", 0.85f);
-            mat.SetFloat("_BlackCrush", 0.025f);
-            mat.SetFloat("_ScanlineIntensity", 0.15f);
-            mat.SetFloat("_ScanlineCount", 270f);
-            mat.SetFloat("_ChromaOffset", 0.0010f);
-            mat.SetFloat("_NoiseIntensity", 0.045f);
+            // Kept deliberately restrained during normal stamina so StaminaExhaustionPostProcess (< 35)
+            // stands out dramatically with its heavy vignette, film grain, and lens distortion.
+            mat.SetFloat("_TargetWidth", 640f);
+            mat.SetFloat("_TargetHeight", 360f);
+            mat.SetFloat("_ColorSteps", 28f);
+            mat.SetFloat("_DitherStrength", 0.45f);
+            mat.SetFloat("_BlackCrush", 0.012f);
+            mat.SetFloat("_ScanlineIntensity", 0.08f);
+            mat.SetFloat("_ScanlineCount", 360f);
+            mat.SetFloat("_ChromaOffset", 0.0005f);
+            mat.SetFloat("_NoiseIntensity", 0.012f);
             mat.SetFloat("_EnablePillarbox", 0f);
             EditorUtility.SetDirty(mat);
             return mat;
@@ -142,29 +144,30 @@ namespace ProjectRac.Editor
 
             var colorAdj = profile.TryGet<ColorAdjustments>(out var existingColor) ? existingColor : profile.Add<ColorAdjustments>(true);
             colorAdj.postExposure.overrideState = true;
-            colorAdj.postExposure.value = 0.15f;
+            colorAdj.postExposure.value = 0.05f;
             colorAdj.contrast.overrideState = true;
-            colorAdj.contrast.value = 18f;
+            colorAdj.contrast.value = 10f;
             colorAdj.saturation.overrideState = true;
-            colorAdj.saturation.value = -20f;
+            colorAdj.saturation.value = -14f;
             colorAdj.colorFilter.overrideState = true;
-            colorAdj.colorFilter.value = new Color(0.95f, 0.92f, 0.82f, 1f);
+            colorAdj.colorFilter.value = new Color(0.97f, 0.95f, 0.89f, 1f);
 
+            // Light base vignette (0.14) so StaminaExhaustionPostProcess (0.48) reads unmistakably when exhausted.
             var vignette = profile.TryGet<Vignette>(out var existingVig) ? existingVig : profile.Add<Vignette>(true);
             vignette.intensity.overrideState = true;
-            vignette.intensity.value = 0.30f;
+            vignette.intensity.value = 0.14f;
             vignette.smoothness.overrideState = true;
-            vignette.smoothness.value = 0.42f;
+            vignette.smoothness.value = 0.45f;
             vignette.color.overrideState = true;
             vignette.color.value = Color.black;
 
             var bloom = profile.TryGet<Bloom>(out var existingBloom) ? existingBloom : profile.Add<Bloom>(true);
             bloom.threshold.overrideState = true;
-            bloom.threshold.value = 0.95f;
+            bloom.threshold.value = 1.05f;
             bloom.intensity.overrideState = true;
-            bloom.intensity.value = 0.35f;
+            bloom.intensity.value = 0.20f;
             bloom.scatter.overrideState = true;
-            bloom.scatter.value = 0.60f;
+            bloom.scatter.value = 0.55f;
 
             EditorUtility.SetDirty(profile);
 
@@ -179,31 +182,30 @@ namespace ProjectRac.Editor
             var volume = volObj.GetComponent<Volume>();
             if (volume == null) volume = volObj.AddComponent<Volume>();
             volume.isGlobal = true;
-            // Strictly lower than StaminaExhaustionPostProcess (priority 25) so exhaustion effects override cleanly.
             volume.priority = 5f;
             volume.weight = 1f;
             volume.sharedProfile = profile;
             volume.enabled = true;
         }
 
-        private static void ConfigureHorrorAtmosphereAndLighting()
+        private static void ConfigureBalancedAtmosphereAndLighting()
         {
+            // Balanced ambient and warm interior lights so hallways stay legible without a flashlight.
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.085f, 0.090f, 0.100f, 1f);
+            RenderSettings.ambientLight = new Color(0.16f, 0.165f, 0.18f, 1f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = new Color(0.025f, 0.028f, 0.036f, 1f);
-            RenderSettings.fogDensity = 0.045f;
+            RenderSettings.fogColor = new Color(0.035f, 0.040f, 0.048f, 1f);
+            RenderSettings.fogDensity = 0.028f;
 
             GameObject dirLightObj = GameObject.Find("Directional Light");
             if (dirLightObj != null && dirLightObj.TryGetComponent<Light>(out var dirLight))
             {
-                Undo.RecordObject(dirLight, "Tune Nocturnal Directional Light");
-                dirLight.intensity = 0.25f;
-                dirLight.color = new Color(0.45f, 0.52f, 0.65f, 1f);
+                Undo.RecordObject(dirLight, "Tune Directional Light");
+                dirLight.intensity = 0.45f;
+                dirLight.color = new Color(0.68f, 0.72f, 0.80f, 1f);
             }
 
-            // Tune MansionMap interior lights into moody warm/amber pools surrounded by dark corners.
             GameObject mansion = GameObject.Find("MansionMap");
             Transform lightsRoot = mansion != null ? mansion.transform.Find("Lighting") : null;
             if (lightsRoot != null)
@@ -211,64 +213,53 @@ namespace ProjectRac.Editor
                 var lights = lightsRoot.GetComponentsInChildren<Light>(true);
                 for (int i = 0; i < lights.Length; i++)
                 {
-                    Undo.RecordObject(lights[i], "Tune Mansion Horror Lights");
-                    lights[i].color = new Color(1.0f, 0.87f, 0.58f, 1f);
-                    lights[i].intensity = 5.5f;
-                    lights[i].range = 11.5f;
+                    Undo.RecordObject(lights[i], "Tune Mansion Interior Lights");
+                    lights[i].color = new Color(1.0f, 0.91f, 0.74f, 1f);
+                    lights[i].intensity = 8.5f;
+                    lights[i].range = 14.0f;
                 }
             }
         }
 
-        private static void ConfigurePS2CameraAndFlashlight()
+        private static void ConfigurePS2CameraAndJump()
         {
             Camera cam = Camera.main;
-            if (cam == null) return;
-
-            Undo.RecordObject(cam, "Configure PS2 Camera");
-            cam.fieldOfView = 55f;
-
-            var camData = cam.GetComponent<UniversalAdditionalCameraData>();
-            if (camData != null)
+            if (cam != null)
             {
-                camData.renderPostProcessing = true;
-                camData.antialiasing = AntialiasingMode.None;
+                Undo.RecordObject(cam, "Configure Subtle PS2 Camera");
+                cam.fieldOfView = 58f;
+
+                var camData = cam.GetComponent<UniversalAdditionalCameraData>();
+                if (camData != null)
+                {
+                    camData.renderPostProcessing = true;
+                    camData.antialiasing = AntialiasingMode.None;
+                }
+
+                var feel = cam.GetComponent<PS2CameraFeel>();
+                if (feel == null) feel = Undo.AddComponent<PS2CameraFeel>(cam.gameObject);
+                Undo.RecordObject(feel, "Apply Subtle PS2 Camera Feel");
+                feel.ApplySubtlePreset();
+
+                var look = cam.GetComponent<FirstPersonCameraLook>();
+                if (look != null)
+                {
+                    Undo.RecordObject(look, "Tune PS2 Look Smoothing");
+                    look.SetLookSmoothing(24f);
+                }
+
+                // Remove flashlight pivot and scrub any missing PlayerFlashlight script cleanly.
+                Transform pivot = cam.transform.Find("FlashlightPivot");
+                if (pivot != null) Undo.DestroyObjectImmediate(pivot.gameObject);
+                GameObjectUtility.RemoveMonoBehavioursWithMissingScript(cam.gameObject);
             }
 
-            var feel = cam.GetComponent<PS2CameraFeel>();
-            if (feel == null) feel = Undo.AddComponent<PS2CameraFeel>(cam.gameObject);
-            feel.SetRetroFov(55f);
-
-            var look = cam.GetComponent<FirstPersonCameraLook>();
-            if (look != null)
+            var fps = Object.FindAnyObjectByType<FirstPersonController>();
+            if (fps != null)
             {
-                Undo.RecordObject(look, "Configure PS2 Look Smoothing");
-                look.SetLookSmoothing(16f);
+                Undo.RecordObject(fps, "Lower Player Jump Height");
+                fps.SetJumpHeight(0.85f);
             }
-
-            Transform pivot = cam.transform.Find("FlashlightPivot");
-            if (pivot == null)
-            {
-                GameObject pivotObj = new GameObject("FlashlightPivot");
-                pivotObj.transform.SetParent(cam.transform, false);
-                Undo.RegisterCreatedObjectUndo(pivotObj, "Create Flashlight Pivot");
-                pivot = pivotObj.transform;
-            }
-            // Place slightly ahead of weapon viewmodels so they never cast giant shadows onto nearby walls.
-            pivot.localPosition = new Vector3(0.0f, -0.04f, 0.62f);
-
-            Light spot = pivot.GetComponent<Light>();
-            if (spot == null) spot = Undo.AddComponent<Light>(pivot.gameObject);
-            spot.type = LightType.Spot;
-            spot.color = new Color(1.0f, 0.945f, 0.84f, 1f);
-            spot.intensity = 9.5f;
-            spot.range = 20f;
-            spot.spotAngle = 62f;
-            spot.innerSpotAngle = 22f;
-            spot.shadows = LightShadows.Soft;
-
-            var flashlight = cam.GetComponent<PlayerFlashlight>();
-            if (flashlight == null) flashlight = Undo.AddComponent<PlayerFlashlight>(cam.gameObject);
-            flashlight.Configure(spot, pivot, enabledByDefault: true);
         }
 
         private static void EnsureFolder(string parent, string child)

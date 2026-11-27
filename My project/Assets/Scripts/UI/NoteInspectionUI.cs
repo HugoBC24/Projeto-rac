@@ -1,6 +1,8 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using ProjectRac.Interaction;
 using ProjectRac.Player;
 using ProjectRac.Weapons;
 
@@ -15,6 +17,7 @@ namespace ProjectRac.UI
         [SerializeField] private Text hintText;
 
         public static bool IsInspecting { get; private set; }
+        public static event Action<InspectableNote> OnNoteClosed;
 
         private FirstPersonController _fpsController;
         private FirstPersonCameraLook _cameraLook;
@@ -22,6 +25,7 @@ namespace ProjectRac.UI
         private MonoBehaviour _pausedWeaponBehaviour;
         private CrosshairHUD _crosshairHUD;
         private AudioSource _audioSource;
+        private InspectableNote _currentNote;
         private int _openedFrame = -1;
 
         private void Awake()
@@ -73,7 +77,7 @@ namespace ProjectRac.UI
             SetPanelVisible(false);
         }
 
-        public void OpenNote(string title, string body, AudioClip clip = null)
+        public void OpenNote(string title, string body, AudioClip clip = null, InspectableNote sourceNote = null)
         {
             ResolveTextReferences();
             ResolvePlayerReferences();
@@ -82,6 +86,7 @@ namespace ProjectRac.UI
             if (bodyText != null) bodyText.text = body ?? "";
             if (hintText != null) hintText.text = "[E] ou [ESC] Fechar Nota";
 
+            _currentNote = sourceNote;
             IsInspecting = true;
             _openedFrame = Time.frameCount;
 
@@ -95,9 +100,12 @@ namespace ProjectRac.UI
         {
             if (!IsInspecting) return;
 
+            InspectableNote closedNote = _currentNote;
+            _currentNote = null;
             IsInspecting = false;
             SetPanelVisible(false);
             RestorePlayerControl();
+            OnNoteClosed?.Invoke(closedNote);
         }
 
         private void PausePlayerControl()

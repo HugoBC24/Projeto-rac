@@ -52,9 +52,23 @@ namespace ProjectRac.Editor
 
         public static GameObject SpawnMeleeEnemy(Transform parent, Vector3 spawnPosition)
         {
+            GameObject bonecaPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(Enemy.BonecaEnemyAssetSetup.PrefabPath);
+            if (bonecaPrefab != null)
+            {
+                GameObject existing = GameObject.Find("MeleeEnemy");
+                if (existing != null) Undo.DestroyObjectImmediate(existing);
+
+                GameObject inst = (GameObject)PrefabUtility.InstantiatePrefab(bonecaPrefab, parent);
+                inst.name = "MeleeEnemy";
+                inst.transform.position = spawnPosition;
+                Undo.RegisterCreatedObjectUndo(inst, "Create MeleeEnemy");
+                return inst;
+            }
+
             GameObject enemyObj = CreateBaseEnemy(parent, "MeleeEnemy", spawnPosition, 3.2f, 1.5f);
             enemyObj.AddComponent<EnemyHealth>();
             enemyObj.AddComponent<EnemyMeleeAI>();
+            enemyObj.AddComponent<EnemyMeleeAnimator>();
             return enemyObj;
         }
 

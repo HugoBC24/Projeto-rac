@@ -40,7 +40,7 @@ namespace ProjectRac.Interaction
 
             if (inspectionUI != null)
             {
-                inspectionUI.OpenNote(noteTitle, noteBody, paperSound);
+                inspectionUI.OpenNote(noteTitle, noteBody, paperSound, this);
             }
             else
             {

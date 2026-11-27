@@ -1,7 +1,6 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
-using ProjectRac.Combat;
 using ProjectRac.Player;
 
 namespace ProjectRac.Enemy
@@ -10,25 +9,20 @@ namespace ProjectRac.Enemy
     [RequireComponent(typeof(EnemyHealth))]
     public class EnemyMeleeAI : MonoBehaviour
     {
-        public enum AIState
-        {
-            Patrol,
-            Chase,
-            Attack
-        }
+        public enum AIState { Idle, Patrol, Chase, Attack }
 
         [Header("State Settings")]
         [SerializeField] private AIState currentState = AIState.Patrol;
+        [SerializeField] private bool startInIdle = false;
+        [SerializeField] private bool relentlessChase = false;
         [SerializeField] private float detectionRadius = 14.0f;
         [SerializeField] private float loseTargetRadius = 22.0f;
         [SerializeField] private float patrolRadius = 12.0f;
         [SerializeField] private float patrolWaitTime = 2.0f;
 
-        [Header("Speeds")]
-        [SerializeField] private float patrolSpeed = 3.2f;
-        [SerializeField] private float chaseSpeed = 5.8f;
-
-        [Header("Melee Attack")]
+        [Header("Speeds & Melee Attack")]
+        [SerializeField] private float patrolSpeed = 2.6f;
+        [SerializeField] private float chaseSpeed = 5.4f;
         [SerializeField] private float attackRange = 1.8f;
         [SerializeField] private float attackDamage = 20.0f;
         [SerializeField] private float attackCooldown = 1.2f;
@@ -38,153 +32,127 @@ namespace ProjectRac.Enemy
         [SerializeField] private GameObject customEnemyPrefab;
 
         public AIState CurrentState => currentState;
+        public bool IsAmbushHeld => _ambushHeld;
 
         private NavMeshAgent _agent;
         private EnemyHealth _health;
+        private EnemyMeleeAnimator _meleeAnimator;
         private PlayerHealth _playerHealth;
         private Vector3 _spawnOrigin;
-        private float _stateTimer;
-        private float _lastAttackTime = -999f;
-        private bool _isAttacking;
+        private float _stateTimer, _lastAttackTime = -999f;
+        private bool _isAttacking, _ambushHeld, _initialized;
 
         private void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();
             _health = GetComponent<EnemyHealth>();
+            _meleeAnimator = GetComponent<EnemyMeleeAnimator>();
             _spawnOrigin = transform.position;
 
             _agent.speed = patrolSpeed;
             _agent.stoppingDistance = attackRange * 0.85f;
             _agent.autoBraking = true;
             _agent.acceleration = 14f;
-            _agent.angularSpeed = 280f;
+            _agent.angularSpeed = 300f;
         }
 
         private void Start()
         {
             ResolveTarget();
-            BuildProceduralVisualsIfNeeded();
-
+            EnsureVisuals();
             _health.OnDamageTaken += HandleDamageTaken;
             _health.OnDeath += HandleDeath;
 
-            TransitionToState(AIState.Patrol);
+            if (!_initialized)
+            {
+                _initialized = true;
+                TransitionToState(startInIdle || _ambushHeld ? AIState.Idle : AIState.Patrol);
+            }
         }
 
         private void OnDestroy()
         {
-            if (_health != null)
-            {
-                _health.OnDamageTaken -= HandleDamageTaken;
-                _health.OnDeath -= HandleDeath;
-            }
+            if (_health == null) return;
+            _health.OnDamageTaken -= HandleDamageTaken;
+            _health.OnDeath -= HandleDeath;
+        }
+
+        public void SetCustomEnemyPrefab(GameObject prefab) => customEnemyPrefab = prefab;
+
+        public void EnterAmbushIdle(Transform lookTarget)
+        {
+            _initialized = true;
+            _ambushHeld = true;
+            BindTarget(lookTarget);
+            TransitionToState(AIState.Idle);
+            FaceTarget(targetPlayer, immediate: true);
+            _meleeAnimator?.ResolveAnimator();
+        }
+
+        public void StartRelentlessChase(Transform target = null)
+        {
+            _initialized = true;
+            _ambushHeld = false;
+            relentlessChase = true;
+            if (target != null) BindTarget(target);
+            else ResolveTarget();
+            TransitionToState(AIState.Chase);
         }
 
         private void Update()
         {
             if (_health != null && _health.IsDead) return;
+            if (targetPlayer == null) { ResolveTarget(); if (targetPlayer == null) return; }
 
-            if (targetPlayer == null)
-            {
-                ResolveTarget();
-                if (targetPlayer == null) return;
-            }
-
-            float distToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
-
+            float dist = Vector3.Distance(transform.position, targetPlayer.position);
             switch (currentState)
             {
-                case AIState.Patrol:
-                    UpdatePatrol(distToPlayer);
+                case AIState.Idle:
+                    if (_agent.isOnNavMesh) _agent.isStopped = true;
+                    if (_ambushHeld) FaceTarget(targetPlayer, false, 8f);
                     break;
-                case AIState.Chase:
-                    UpdateChase(distToPlayer);
-                    break;
-                case AIState.Attack:
-                    UpdateAttack(distToPlayer);
-                    break;
+                case AIState.Patrol: UpdatePatrol(dist); break;
+                case AIState.Chase: UpdateChase(dist); break;
+                case AIState.Attack: UpdateAttack(dist); break;
             }
         }
 
         private void UpdatePatrol(float distToPlayer)
         {
-            if (distToPlayer <= detectionRadius)
-            {
-                TransitionToState(AIState.Chase);
-                return;
-            }
+            if (distToPlayer <= detectionRadius) { TransitionToState(AIState.Chase); return; }
+            if (!_agent.isOnNavMesh || _agent.pathPending || _agent.remainingDistance > _agent.stoppingDistance + 0.3f) return;
 
-            if (!_agent.pathPending && _agent.remainingDistance <= _agent.stoppingDistance + 0.3f)
-            {
-                _stateTimer += Time.deltaTime;
-                if (_stateTimer >= patrolWaitTime)
-                {
-                    _stateTimer = 0f;
-                    SetRandomPatrolDestination();
-                }
-            }
+            _stateTimer += Time.deltaTime;
+            if (_stateTimer >= patrolWaitTime) { _stateTimer = 0f; SetRandomPatrolDestination(); }
         }
 
         private void UpdateChase(float distToPlayer)
         {
-            if (distToPlayer > loseTargetRadius)
-            {
-                TransitionToState(AIState.Patrol);
-                return;
-            }
-
-            if (distToPlayer <= attackRange)
-            {
-                TransitionToState(AIState.Attack);
-                return;
-            }
-
-            _agent.isStopped = false;
-            _agent.SetDestination(targetPlayer.position);
+            if (!relentlessChase && distToPlayer > loseTargetRadius) { TransitionToState(AIState.Patrol); return; }
+            if (distToPlayer <= attackRange) { TransitionToState(AIState.Attack); return; }
+            if (_agent.isOnNavMesh) { _agent.isStopped = false; _agent.SetDestination(targetPlayer.position); }
         }
 
         private void UpdateAttack(float distToPlayer)
         {
-            if (distToPlayer > attackRange * 1.25f && !_isAttacking)
-            {
-                TransitionToState(AIState.Chase);
-                return;
-            }
-
-            _agent.isStopped = true;
-
-            // Rotate smoothly towards player while in attack stance
-            Vector3 lookDir = (targetPlayer.position - transform.position);
-            lookDir.y = 0f;
-            if (lookDir.sqrMagnitude > 0.01f)
-            {
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 10f);
-            }
-
-            if (Time.time >= _lastAttackTime + attackCooldown)
-            {
-                StartCoroutine(PerformAttackRoutine());
-            }
+            if (distToPlayer > attackRange * 1.25f && !_isAttacking) { TransitionToState(AIState.Chase); return; }
+            if (_agent.isOnNavMesh) _agent.isStopped = true;
+            FaceTarget(targetPlayer, false, 10f);
+            if (Time.time >= _lastAttackTime + attackCooldown) StartCoroutine(PerformAttackRoutine());
         }
 
         private IEnumerator PerformAttackRoutine()
         {
             _isAttacking = true;
             _lastAttackTime = Time.time;
-
-            // Short windup before strike
             yield return new WaitForSeconds(0.25f);
 
             if (_health != null && !_health.IsDead && targetPlayer != null)
             {
-                float currentDist = Vector3.Distance(transform.position, targetPlayer.position);
-                if (currentDist <= attackRange * 1.3f)
+                if (Vector3.Distance(transform.position, targetPlayer.position) <= attackRange * 1.3f && _playerHealth != null)
                 {
-                    if (_playerHealth != null)
-                    {
-                        Vector3 strikeDir = (targetPlayer.position - transform.position).normalized;
-                        _playerHealth.TakeDamage(attackDamage, targetPlayer.position, strikeDir);
-                    }
+                    Vector3 strikeDir = (targetPlayer.position - transform.position).normalized;
+                    _playerHealth.TakeDamage(attackDamage, targetPlayer.position, strikeDir);
                 }
             }
 
@@ -192,12 +160,17 @@ namespace ProjectRac.Enemy
             _isAttacking = false;
         }
 
-        private void TransitionToState(AIState newState)
+        public void TransitionToState(AIState newState)
         {
             currentState = newState;
             _stateTimer = 0f;
+            if (_agent == null || !_agent.isOnNavMesh) return;
 
-            if (currentState == AIState.Patrol)
+            if (currentState == AIState.Idle || currentState == AIState.Attack)
+            {
+                _agent.isStopped = true;
+            }
+            else if (currentState == AIState.Patrol)
             {
                 _agent.speed = patrolSpeed;
                 _agent.isStopped = false;
@@ -209,17 +182,12 @@ namespace ProjectRac.Enemy
                 _agent.isStopped = false;
                 if (targetPlayer != null) _agent.SetDestination(targetPlayer.position);
             }
-            else if (currentState == AIState.Attack)
-            {
-                _agent.isStopped = true;
-            }
         }
 
         private void SetRandomPatrolDestination()
         {
-            Vector2 randomCircle = Random.insideUnitCircle * patrolRadius;
-            Vector3 targetPos = _spawnOrigin + new Vector3(randomCircle.x, 0f, randomCircle.y);
-
+            Vector2 c = Random.insideUnitCircle * patrolRadius;
+            Vector3 targetPos = _spawnOrigin + new Vector3(c.x, 0f, c.y);
             if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, patrolRadius, NavMesh.AllAreas))
             {
                 _agent.SetDestination(hit.position);
@@ -228,7 +196,7 @@ namespace ProjectRac.Enemy
 
         private void HandleDamageTaken(Vector3 hitPoint)
         {
-            if (currentState == AIState.Patrol)
+            if (!_ambushHeld && (currentState == AIState.Patrol || currentState == AIState.Idle))
             {
                 TransitionToState(AIState.Chase);
             }
@@ -237,71 +205,50 @@ namespace ProjectRac.Enemy
         private void HandleDeath()
         {
             StopAllCoroutines();
-            if (_agent != null && _agent.isOnNavMesh)
-            {
-                _agent.isStopped = true;
-                _agent.enabled = false;
-            }
+            if (_agent != null && _agent.isOnNavMesh) { _agent.isStopped = true; _agent.enabled = false; }
             enabled = false;
+        }
+
+        private void FaceTarget(Transform target, bool immediate, float turnSpeed = 8f)
+        {
+            if (target == null) return;
+            Vector3 dir = target.position - transform.position;
+            dir.y = 0f;
+            if (dir.sqrMagnitude <= 0.001f) return;
+            Quaternion rot = Quaternion.LookRotation(dir.normalized);
+            transform.rotation = immediate ? rot : Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * turnSpeed);
+        }
+
+        private void BindTarget(Transform target)
+        {
+            if (target == null) return;
+            targetPlayer = target;
+            _playerHealth = target.GetComponent<PlayerHealth>();
         }
 
         private void ResolveTarget()
         {
-            if (targetPlayer == null)
-            {
-                var playerObj = GameObject.FindWithTag("Player");
-                if (playerObj != null)
-                {
-                    targetPlayer = playerObj.transform;
-                    _playerHealth = playerObj.GetComponent<PlayerHealth>();
-                }
-            }
+            if (targetPlayer != null) return;
+            var playerObj = GameObject.FindWithTag("Player");
+            if (playerObj != null) BindTarget(playerObj.transform);
         }
 
-        private void BuildProceduralVisualsIfNeeded()
+        private void EnsureVisuals()
         {
+            if (GetComponentInChildren<Renderer>(true) != null) return;
             if (customEnemyPrefab != null)
             {
                 Instantiate(customEnemyPrefab, transform);
+                _health?.RefreshRenderers();
+                _meleeAnimator?.ResolveAnimator();
                 return;
             }
 
-            if (transform.Find("EnemyMesh") != null) return;
-
-            // Generate procedural cyber-melee model
-            GameObject meshRoot = new GameObject("EnemyMesh");
-            meshRoot.transform.SetParent(transform, false);
-
-            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            body.name = "Body";
-            body.transform.SetParent(meshRoot.transform, false);
-            body.transform.localPosition = new Vector3(0f, 1.0f, 0f);
-            body.transform.localScale = new Vector3(0.75f, 1.0f, 0.75f);
-            Destroy(body.GetComponent<Collider>());
-
-            var rend = body.GetComponent<Renderer>();
-            if (rend != null)
-            {
-                var block = new MaterialPropertyBlock();
-                block.SetColor("_BaseColor", new Color(0.18f, 0.18f, 0.22f));
-                rend.SetPropertyBlock(block);
-            }
-
-            // Visor
-            GameObject visor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            visor.name = "Visor";
-            visor.transform.SetParent(meshRoot.transform, false);
-            visor.transform.localPosition = new Vector3(0f, 1.45f, 0.32f);
-            visor.transform.localScale = new Vector3(0.45f, 0.15f, 0.2f);
-            Destroy(visor.GetComponent<Collider>());
-
-            var visorRend = visor.GetComponent<Renderer>();
-            if (visorRend != null)
-            {
-                var block = new MaterialPropertyBlock();
-                block.SetColor("_BaseColor", new Color(0.95f, 0.1f, 0.1f));
-                visorRend.SetPropertyBlock(block);
-            }
+            GameObject fallback = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            fallback.name = "EnemyMesh";
+            fallback.transform.SetParent(transform, false);
+            fallback.transform.localPosition = new Vector3(0f, 1.0f, 0f);
+            Destroy(fallback.GetComponent<Collider>());
         }
     }
 }

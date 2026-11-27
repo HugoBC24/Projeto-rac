@@ -86,6 +86,12 @@ namespace ProjectRac.Player
             ApplyCameraRotation();
         }
 
+        public void SetPitch(float pitchDegrees)
+        {
+            _xRotation = Mathf.Clamp(pitchDegrees, minPitch, maxPitch);
+            ApplyCameraRotation();
+        }
+
         public void SetLookSmoothing(float smoothing)
         {
             lookSmoothing = Mathf.Max(0f, smoothing);

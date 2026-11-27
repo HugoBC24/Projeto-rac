@@ -10,7 +10,8 @@ Controla inimigos corpo a corpo e a distancia com navegacao baseada em `NavMeshA
 
 | Arquivo | Linhas | Responsabilidade | API / Eventos Principais |
 | :--- | :---: | :--- | :--- |
-| `EnemyMeleeAI.cs` | 307 | Maquina de estados `AIState` (`Patrol`, `Chase`, `Attack`) corpo a corpo sobre `NavMeshAgent` | `CurrentState`, `detectionRadius` (`14m`), `loseTargetRadius` (`22m`), `attackRange` (`1.8m`), `attackDamage` (`20`) |
+| `EnemyMeleeAI.cs` | 254 | Maquina de estados `AIState` (`Idle`, `Patrol`, `Chase`, `Attack`) corpo a corpo sobre `NavMeshAgent`, com suporte a emboscada (`EnterAmbushIdle` / `StartRelentlessChase`) | `CurrentState`, `EnterAmbushIdle(...)`, `StartRelentlessChase(...)`, `TransitionToState(...)` |
+| `EnemyMeleeAnimator.cs` | 112 | Sincroniza `EnemyMeleeAI` com o `BonecaEnemy.controller` (`AnimState`: `0 = Idle` 120-165, `1 = Walk` 1-55, `2 = Run` 55-120) com `applyRootMotion = false` | `CurrentAnimState`, `BindAnimator(...)`, `ResolveAnimator()` |
 | `EnemyRangedAI.cs` | 289 | Maquina de estados `RangedAIState` (`Patrol`, `Chase`, `Attack`, `Retreat`) com LOS em timer (`0.15s`), windup (`0.35s`) e recuo | `CurrentState`, `HasLineOfSight`, `FirePoint`, `BindProjectilePool(...)` |
 | `EnemyPerception.cs` | 84 | Sensor de linha de visao (peito/cabeca) e amostragem de pontos de patrulha/recuo no `NavMesh` | `HasLineOfSight(...)`, `TrySamplePatrolPoint(...)`, `TrySampleRetreatPoint(...)` |
 | `EnemyRangedVisuals.cs` | 173 | Modelo procedural distinto do `RangedEnemy` (armadura azul-petroleo, visor ambar, blaster + `FirePoint` + brilho de carregamento) | `EnsureVisuals(...)`, `SetMuzzleColor(...)` |
@@ -42,4 +43,4 @@ stateDiagram-v2
 - `EnemyRangedAI` e `EnemyMeleeAI` exigem `[RequireComponent(typeof(NavMeshAgent))]` e `[RequireComponent(typeof(EnemyHealth))]`.
 - `EnemyProjectile` ignora outros `EnemyHealth` (sem fogo amigo), ignora `DoorController`/`ShotgunPickup` e aplica dano somente em `PlayerHealth` ([[player-systems]]).
 - Paredes, portas fechadas (`WallWithDoor`) e caixas de fisica bloqueiam tanto o sensor `EnemyPerception.HasLineOfSight` quanto os projeteis inimigos, funcionando como cobertura real.
-- **Debito tecnico registrado (KI-01)**: `EnemyMeleeAI.cs` permanece em **307 linhas**; todos os novos modulos de `RangedEnemy` foram estruturados abaixo de 300 linhas.
+- **KI-01 resolvido:** `EnemyMeleeAI.cs` foi modularizado (extraindo `EnemyMeleeAnimator.cs`) e reduzido de 307 para **254 linhas**; todos os scripts de inimigos estao abaixo de 300 linhas.

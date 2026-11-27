@@ -116,9 +116,8 @@ namespace ProjectRac.Enemy
             for (int i = 0; i < _renderers.Count; i++)
             {
                 if (_renderers[i] == null) continue;
-                _renderers[i].GetPropertyBlock(_propBlock);
-                _propBlock.SetColor("_BaseColor", _originalColors[i]);
-                _renderers[i].SetPropertyBlock(_propBlock);
+                // Clearing the property block preserves all sub-materials on multi-material SkinnedMeshRenderers.
+                _renderers[i].SetPropertyBlock(null);
             }
 
             _flashCoroutine = null;

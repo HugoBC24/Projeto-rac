@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -42,6 +43,8 @@ namespace ProjectRac.UI
         private readonly VisualNovelGameplayLock _gameplayLock = new VisualNovelGameplayLock();
         private AudioSource _audioSource;
         private Coroutine _restoreRoutine;
+        private List<VisualNovelDialogueLine> _activeLines;
+        private Action _onSequenceComplete;
         private int _currentIndex = -1, _openedFrame = -1;
         private bool _isDialogueVisible, _isTyping, _hasContinueBasePos;
         private string _currentFullText = "";
@@ -139,16 +142,15 @@ namespace ProjectRac.UI
             if (_isDialogueVisible) CloseDialogue();
         }
 
-        public void StartDialogue()
+        public void StartDialogue() => StartDialogue(dialogueLines, null);
+
+        public void StartDialogue(List<VisualNovelDialogueLine> customLines, Action onComplete = null)
         {
-            if (dialogueLines == null || dialogueLines.Count == 0) return;
+            if (customLines == null || customLines.Count == 0) { onComplete?.Invoke(); return; }
+            if (_restoreRoutine != null) { StopCoroutine(_restoreRoutine); _restoreRoutine = null; }
 
-            if (_restoreRoutine != null)
-            {
-                StopCoroutine(_restoreRoutine);
-                _restoreRoutine = null;
-            }
-
+            _activeLines = customLines;
+            _onSequenceComplete = onComplete;
             _gameplayLock.Pause(transform, hideGameplayHud, hideWeaponViewmodel);
             IsActive = true;
             _isDialogueVisible = true;
@@ -166,13 +168,13 @@ namespace ProjectRac.UI
             if (_isTyping) { CompleteCurrentLine(); return; }
 
             _currentIndex++;
-            if (_currentIndex >= dialogueLines.Count) CloseDialogue();
+            if (_activeLines == null || _currentIndex >= _activeLines.Count) CloseDialogue();
             else DisplayLine(_currentIndex);
         }
 
         private void DisplayLine(int index)
         {
-            VisualNovelDialogueLine line = dialogueLines[index] ?? new VisualNovelDialogueLine();
+            VisualNovelDialogueLine line = _activeLines[index] ?? new VisualNovelDialogueLine();
             bool hasSpeaker = !string.IsNullOrWhiteSpace(line.speakerName);
             if (speakerNameBox != null) speakerNameBox.SetActive(hasSpeaker);
             if (speakerNameText != null && hasSpeaker)
@@ -268,6 +270,9 @@ namespace ProjectRac.UI
             _gameplayLock.Restore();
             IsActive = false;
             _restoreRoutine = null;
+            Action callback = _onSequenceComplete;
+            _onSequenceComplete = null;
+            callback?.Invoke();
             onDialogueFinished?.Invoke();
         }
 

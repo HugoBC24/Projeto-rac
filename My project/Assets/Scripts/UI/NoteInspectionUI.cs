@@ -82,7 +82,7 @@ namespace ProjectRac.UI
             ResolveTextReferences();
             ResolvePlayerReferences();
 
-            if (titleText != null) titleText.text = string.IsNullOrEmpty(title) ? "NOTA" : title.ToUpper();
+            if (titleText != null) titleText.text = string.IsNullOrEmpty(title) ? "" : title.ToUpper();
             if (bodyText != null) bodyText.text = body ?? "";
             if (hintText != null) hintText.text = "[E] ou [ESC] Fechar Nota";
 

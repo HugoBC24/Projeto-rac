@@ -76,6 +76,11 @@ namespace ProjectRac.Interaction
             containedInteractable = item;
         }
 
+        public void ClearContainedInteractable()
+        {
+            containedInteractable = null;
+        }
+
         public string GetInteractionPrompt()
         {
             if (IsOpen && containedInteractable != null && containedInteractable is IInteractable item)
@@ -91,6 +96,10 @@ namespace ProjectRac.Interaction
             if (IsOpen && containedInteractable != null && containedInteractable is IInteractable item)
             {
                 item.Interact();
+                if (containedInteractable == null)
+                {
+                    containedInteractable = null;
+                }
                 return;
             }
 

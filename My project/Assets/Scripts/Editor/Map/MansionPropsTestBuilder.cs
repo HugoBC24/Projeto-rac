@@ -75,31 +75,17 @@ namespace ProjectRac.Editor.Map
             // Face West (-X) toward the center of the HALL.
             dresser.transform.rotation = Quaternion.Euler(0f, -90f, 0f);
 
-            // Outer carcass (width 1.1m, height 0.92m, depth 0.58m) leaving front opening for top drawer
+            // Outer carcass (width 1.1m, height 0.92m, depth 0.58m) with openings for top and bottom drawers
             MansionDoorFactory.CreateLocalBox(dresser.transform, "TopBoard", new Vector3(0f, 0.89f, 0f), new Vector3(1.12f, 0.06f, 0.60f), WoodDark);
-            MansionDoorFactory.CreateLocalBox(dresser.transform, "BottomBase", new Vector3(0f, 0.28f, 0f), new Vector3(1.06f, 0.56f, 0.56f), WoodDark);
-            MansionDoorFactory.CreateLocalBox(dresser.transform, "BackPanel", new Vector3(0f, 0.71f, -0.26f), new Vector3(1.06f, 0.30f, 0.04f), WoodInner);
-            MansionDoorFactory.CreateLocalBox(dresser.transform, "Side_Left", new Vector3(-0.51f, 0.71f, 0f), new Vector3(0.05f, 0.30f, 0.56f), WoodDark);
-            MansionDoorFactory.CreateLocalBox(dresser.transform, "Side_Right", new Vector3(0.51f, 0.71f, 0f), new Vector3(0.05f, 0.30f, 0.56f), WoodDark);
+            MansionDoorFactory.CreateLocalBox(dresser.transform, "MidShelf", new Vector3(0f, 0.46f, 0f), new Vector3(1.06f, 0.04f, 0.56f), WoodDark);
+            MansionDoorFactory.CreateLocalBox(dresser.transform, "BottomPlinth", new Vector3(0f, 0.04f, 0f), new Vector3(1.06f, 0.08f, 0.56f), WoodDark);
+            MansionDoorFactory.CreateLocalBox(dresser.transform, "BackPanel", new Vector3(0f, 0.47f, -0.26f), new Vector3(1.06f, 0.78f, 0.04f), WoodInner);
+            MansionDoorFactory.CreateLocalBox(dresser.transform, "Side_Left", new Vector3(-0.51f, 0.47f, 0f), new Vector3(0.05f, 0.78f, 0.56f), WoodDark);
+            MansionDoorFactory.CreateLocalBox(dresser.transform, "Side_Right", new Vector3(0.51f, 0.47f, 0f), new Vector3(0.05f, 0.78f, 0.56f), WoodDark);
 
-            // Sliding interactive drawer (local +Z slides outward toward the player)
-            GameObject drawer = new GameObject("Drawer_Top");
-            drawer.transform.SetParent(dresser.transform, false);
-            drawer.transform.localPosition = new Vector3(0f, 0.71f, 0.02f);
-
-            var drawerCol = drawer.AddComponent<BoxCollider>();
-            drawerCol.center = new Vector3(0f, 0f, 0.08f);
-            drawerCol.size = new Vector3(0.98f, 0.26f, 0.54f);
-
-            var drawerCtrl = drawer.AddComponent<DrawerController>();
-            drawerCtrl.Configure(drawer.transform, Vector3.forward, 0.44f);
-
-            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Front", new Vector3(0f, 0f, 0.26f), new Vector3(0.98f, 0.25f, 0.04f), WoodMedium, removeCollider: true);
-            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Bottom", new Vector3(0f, -0.10f, 0f), new Vector3(0.92f, 0.03f, 0.48f), WoodInner, removeCollider: true);
-            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Left", new Vector3(-0.45f, 0f, 0f), new Vector3(0.03f, 0.20f, 0.48f), WoodInner, removeCollider: true);
-            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Right", new Vector3(0.45f, 0f, 0f), new Vector3(0.03f, 0.20f, 0.48f), WoodInner, removeCollider: true);
-            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Back", new Vector3(0f, 0f, -0.23f), new Vector3(0.92f, 0.20f, 0.03f), WoodInner, removeCollider: true);
-            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Handle", new Vector3(0f, 0f, 0.30f), new Vector3(0.22f, 0.04f, 0.04f), BrassHandle, removeCollider: true);
+            // Two sliding interactive drawers
+            BuildSingleDrawer(dresser.transform, "Drawer_Top", new Vector3(0f, 0.68f, 0.02f));
+            BuildSingleDrawer(dresser.transform, "Drawer_Bottom", new Vector3(0f, 0.25f, 0.02f));
 
             // Inspectable Note resting on top of the dresser
             GameObject noteObj = new GameObject("Test_Note");
@@ -124,6 +110,29 @@ namespace ProjectRac.Editor.Map
             MansionDoorFactory.CreateLocalBox(noteObj.transform, "InkLine_1", new Vector3(0f, 0.008f, 0.09f), new Vector3(0.18f, 0.003f, 0.014f), InkColor, removeCollider: true);
             MansionDoorFactory.CreateLocalBox(noteObj.transform, "InkLine_2", new Vector3(-0.01f, 0.008f, 0.02f), new Vector3(0.19f, 0.003f, 0.012f), InkColor, removeCollider: true);
             MansionDoorFactory.CreateLocalBox(noteObj.transform, "InkLine_3", new Vector3(-0.02f, 0.008f, -0.05f), new Vector3(0.15f, 0.003f, 0.012f), InkColor, removeCollider: true);
+        }
+
+        public static DrawerController BuildSingleDrawer(Transform parent, string name, Vector3 localPos)
+        {
+            GameObject drawer = new GameObject(name);
+            drawer.transform.SetParent(parent, false);
+            drawer.transform.localPosition = localPos;
+
+            var drawerCol = drawer.AddComponent<BoxCollider>();
+            drawerCol.center = new Vector3(0f, 0f, 0.08f);
+            drawerCol.size = new Vector3(0.98f, 0.26f, 0.54f);
+
+            var drawerCtrl = drawer.AddComponent<DrawerController>();
+            drawerCtrl.Configure(drawer.transform, Vector3.forward, 0.44f);
+
+            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Front", new Vector3(0f, 0f, 0.26f), new Vector3(0.98f, 0.25f, 0.04f), WoodMedium, removeCollider: true);
+            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Bottom", new Vector3(0f, -0.10f, 0f), new Vector3(0.92f, 0.03f, 0.48f), WoodInner, removeCollider: true);
+            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Left", new Vector3(-0.45f, 0f, 0f), new Vector3(0.03f, 0.20f, 0.48f), WoodInner, removeCollider: true);
+            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Right", new Vector3(0.45f, 0f, 0f), new Vector3(0.03f, 0.20f, 0.48f), WoodInner, removeCollider: true);
+            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Back", new Vector3(0f, 0f, -0.23f), new Vector3(0.92f, 0.20f, 0.03f), WoodInner, removeCollider: true);
+            MansionDoorFactory.CreateLocalBox(drawer.transform, "Drawer_Handle", new Vector3(0f, 0f, 0.30f), new Vector3(0.22f, 0.04f, 0.04f), BrassHandle, removeCollider: true);
+
+            return drawerCtrl;
         }
 
         private static void BuildTestCabinet(Transform parent, Vector3 worldPos)

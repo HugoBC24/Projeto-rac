@@ -31,6 +31,13 @@ namespace ProjectRac.Weapons
             if (slingshot.AddAmmo(ammoAmount) <= 0) return;
 
             _isPickedUp = true;
+
+            var drawer = GetComponentInParent<DrawerController>();
+            if (drawer != null)
+            {
+                drawer.ClearContainedInteractable();
+            }
+
             if (pickupSound != null)
             {
                 AudioSource.PlayClipAtPoint(pickupSound, transform.position, 0.9f);

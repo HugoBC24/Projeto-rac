@@ -77,6 +77,8 @@ namespace ProjectRac.Editor.Map
 
             var comp = pickup.AddComponent<SlingshotPickup>();
             comp.Configure(6);
+            drawerCtrl.SetContainedInteractable(comp);
+            EditorUtility.SetDirty(drawerCtrl);
 
             // Clean miniature slingshot visual (handle + forks + bands)
             MansionDoorFactory.CreateLocalBox(pickup.transform, "Handle", new Vector3(0f, -0.07f, 0f), new Vector3(0.035f, 0.14f, 0.035f), SlingshotWood, removeCollider: true);

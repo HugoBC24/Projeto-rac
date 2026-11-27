@@ -20,6 +20,9 @@ namespace ProjectRac.Interaction
         [SerializeField] private AudioClip openSound;
         [SerializeField] private AudioClip closeSound;
 
+        [Header("Contained Item (Optional)")]
+        [SerializeField] private MonoBehaviour containedInteractable;
+
         public bool IsOpen { get; private set; }
 
         private Vector3 _closedLocalPos;
@@ -68,9 +71,31 @@ namespace ProjectRac.Interaction
             slideDistance = distance;
         }
 
-        public string GetInteractionPrompt() => IsOpen ? closePrompt : openPrompt;
+        public void SetContainedInteractable(MonoBehaviour item)
+        {
+            containedInteractable = item;
+        }
 
-        public void Interact() => Toggle();
+        public string GetInteractionPrompt()
+        {
+            if (IsOpen && containedInteractable != null && containedInteractable is IInteractable item)
+            {
+                return item.GetInteractionPrompt();
+            }
+
+            return IsOpen ? closePrompt : openPrompt;
+        }
+
+        public void Interact()
+        {
+            if (IsOpen && containedInteractable != null && containedInteractable is IInteractable item)
+            {
+                item.Interact();
+                return;
+            }
+
+            Toggle();
+        }
 
         public void Toggle()
         {

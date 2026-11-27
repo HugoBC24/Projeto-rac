@@ -45,7 +45,7 @@ namespace ProjectRac.Player
 
         private void Update()
         {
-            if (NoteInspectionUI.IsInspecting)
+            if (NoteInspectionUI.IsInspecting || VisualNovelDialogueUI.IsActive)
             {
                 if (_currentInteractable != null)
                 {

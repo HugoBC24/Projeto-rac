@@ -78,6 +78,9 @@ namespace ProjectRac.Editor
 
             // 5. Note Inspection Modal HUD
             Map.MansionPropsTestBuilder.BuildNoteInspectionUI(canvasObj.transform);
+
+            // 6. Visual Novel Intro Dialogue Panel
+            UI.VisualNovelDialogueBuilder.BuildVisualNovelDialogueUI(canvasObj.transform);
         }
 
         private static void BuildStaminaHUD(Transform parent, GameObject player)

@@ -43,6 +43,21 @@ namespace ProjectRac.Player
         private void OnDisable()
         {
             DisableActions();
+            ClearBufferedInputs();
+        }
+
+        public void ClearBufferedInputs()
+        {
+            MoveInput = Vector2.zero;
+            LookInput = Vector2.zero;
+            JumpTriggered = false;
+            IsSprinting = false;
+            InteractTriggered = false;
+            PrimaryActionTriggered = false;
+            PrimaryActionHeld = false;
+            PrimaryActionReleased = false;
+            QuickSlot1Triggered = false;
+            QuickSlot2Triggered = false;
         }
 
         private void Update()

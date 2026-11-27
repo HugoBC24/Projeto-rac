@@ -8,10 +8,12 @@ namespace ProjectRac.Enemy
     [RequireComponent(typeof(EnemyHealth))]
     public class EnemyRangedAI : MonoBehaviour
     {
-        public enum RangedAIState { Patrol, Chase, Attack, Retreat }
+        public enum RangedAIState { Idle, Patrol, Chase, Attack, Retreat }
 
         [Header("Perception & Ranges")]
         [SerializeField] private RangedAIState currentState = RangedAIState.Patrol;
+        [SerializeField] private bool startInIdle = false;
+        [SerializeField] private bool relentlessChase = false;
         [SerializeField] private float detectionRadius = 20f;
         [SerializeField] private float loseTargetRadius = 28f;
         [SerializeField] private float attackRange = 15f;
@@ -24,24 +26,26 @@ namespace ProjectRac.Enemy
         [SerializeField] private LayerMask losObstructionLayers = ~0;
 
         [Header("Speeds & Repath")]
-        [SerializeField] private float patrolSpeed = 2.8f;
-        [SerializeField] private float chaseSpeed = 4.6f;
-        [SerializeField] private float retreatSpeed = 4.2f;
+        [SerializeField] private float patrolSpeed = 2.6f;
+        [SerializeField] private float chaseSpeed = 4.2f;
+        [SerializeField] private float retreatSpeed = 3.8f;
         [SerializeField] private float repathInterval = 0.25f;
 
         [Header("Ranged Attack")]
         [SerializeField] private float projectileDamage = 15f;
         [SerializeField] private float projectileSpeed = 24f;
-        [SerializeField] private float attackWindup = 0.35f;
+        [SerializeField] private float attackWindup = 0.45f;
         [SerializeField] private float fireCooldown = 1.6f;
 
         [Header("References")]
         [SerializeField] private Transform targetPlayer;
         [SerializeField] private EnemyProjectilePool projectilePool;
         [SerializeField] private GameObject customEnemyPrefab;
+        [SerializeField] private Transform firePointOverride;
 
         public RangedAIState CurrentState => currentState;
         public bool HasLineOfSight => _hasLineOfSight;
+        public bool IsFiring => _isFiring;
         public Transform FirePoint => _firePoint;
 
         private NavMeshAgent _agent;
@@ -49,15 +53,9 @@ namespace ProjectRac.Enemy
         private Transform _firePoint;
         private Renderer _muzzleRenderer;
         private MaterialPropertyBlock _muzzleBlock;
-        private Vector3 _spawnOrigin;
-        private Vector3 _lastKnownPlayerPos;
-        private bool _hasLineOfSight;
-        private bool _hasSeenPlayer;
-        private bool _isFiring;
-        private float _stateTimer;
-        private float _nextPerceptionTime;
-        private float _nextRepathTime;
-        private float _lastFireTime = -999f;
+        private Vector3 _spawnOrigin, _lastKnownPlayerPos;
+        private bool _hasLineOfSight, _hasSeenPlayer, _isFiring, _encounterHeld, _initialized;
+        private float _stateTimer, _nextPerceptionTime, _nextRepathTime, _lastFireTime = -999f;
 
         private void Awake()
         {
@@ -74,13 +72,27 @@ namespace ProjectRac.Enemy
         private void Start()
         {
             ResolveReferences();
-            var handles = EnemyRangedVisuals.EnsureVisuals(transform, customEnemyPrefab);
-            _firePoint = handles.FirePoint;
-            _muzzleRenderer = handles.MuzzleRenderer;
+            if (GetComponentInChildren<Renderer>(true) == null)
+            {
+                var handles = EnemyRangedVisuals.EnsureVisuals(transform, customEnemyPrefab);
+                _firePoint = handles.FirePoint;
+                _muzzleRenderer = handles.MuzzleRenderer;
+            }
+            else
+            {
+                _firePoint = firePointOverride != null ? firePointOverride : transform.Find("FirePoint");
+            }
+
             _health.RefreshRenderers();
             _health.OnDamageTaken += HandleDamageTaken;
             _health.OnDeath += HandleDeath;
-            TransitionToState(RangedAIState.Patrol);
+
+            if (!_initialized)
+            {
+                _initialized = true;
+                _encounterHeld = startInIdle;
+                TransitionToState(startInIdle ? RangedAIState.Idle : RangedAIState.Patrol);
+            }
         }
 
         private void OnDestroy()
@@ -91,108 +103,118 @@ namespace ProjectRac.Enemy
         }
 
         public void BindProjectilePool(EnemyProjectilePool pool) => projectilePool = pool;
+        public void SetStartInIdle(bool idle) => startInIdle = idle;
+
+        public void EnterEncounterIdle(Transform lookTarget = null)
+        {
+            _initialized = true;
+            _encounterHeld = true;
+            if (lookTarget != null) targetPlayer = lookTarget;
+            TransitionToState(RangedAIState.Idle);
+        }
+
+        public void StartRelentlessChase(Transform target = null)
+        {
+            _initialized = true;
+            _encounterHeld = false;
+            relentlessChase = true;
+            if (target != null) targetPlayer = target;
+            else ResolveReferences();
+            if (targetPlayer != null) { _hasSeenPlayer = true; _lastKnownPlayerPos = targetPlayer.position; }
+            TransitionToState(RangedAIState.Chase);
+        }
 
         private void Update()
         {
             if (_health != null && _health.IsDead) return;
             if (targetPlayer == null) { ResolveReferences(); if (targetPlayer == null) return; }
 
-            float distToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
-            if (Time.time >= _nextPerceptionTime)
+            float dist = Vector3.Distance(transform.position, targetPlayer.position);
+            if (!_encounterHeld && Time.time >= _nextPerceptionTime)
             {
                 _nextPerceptionTime = Time.time + perceptionInterval;
-                _hasLineOfSight = distToPlayer <= loseTargetRadius
-                    && EnemyPerception.HasLineOfSight(transform, targetPlayer, losObstructionLayers);
+                _hasLineOfSight = dist <= loseTargetRadius && EnemyPerception.HasLineOfSight(transform, targetPlayer, losObstructionLayers);
                 if (_hasLineOfSight) { _hasSeenPlayer = true; _lastKnownPlayerPos = targetPlayer.position; }
             }
 
             switch (currentState)
             {
-                case RangedAIState.Patrol: UpdatePatrol(distToPlayer); break;
-                case RangedAIState.Chase: UpdateChase(distToPlayer); break;
-                case RangedAIState.Attack: UpdateAttack(distToPlayer); break;
-                case RangedAIState.Retreat: UpdateRetreat(distToPlayer); break;
+                case RangedAIState.Idle:
+                    if (_agent.isOnNavMesh) _agent.isStopped = true;
+                    if (_encounterHeld && targetPlayer != null && Vector3.Distance(transform.position, targetPlayer.position) < 12f)
+                        RotateTowardPlayer(5f);
+                    break;
+                case RangedAIState.Patrol: UpdatePatrol(dist); break;
+                case RangedAIState.Chase: UpdateChase(dist); break;
+                case RangedAIState.Attack: UpdateAttack(dist); break;
+                case RangedAIState.Retreat: UpdateRetreat(dist); break;
             }
         }
 
-        private void UpdatePatrol(float distToPlayer)
+        private void UpdatePatrol(float dist)
         {
-            if (distToPlayer <= detectionRadius && _hasLineOfSight) { TransitionToState(RangedAIState.Chase); return; }
+            if (dist <= detectionRadius && _hasLineOfSight) { TransitionToState(RangedAIState.Chase); return; }
+            if (!_agent.isOnNavMesh || _agent.pathPending || _agent.remainingDistance > _agent.stoppingDistance + 0.35f) return;
 
-            if (!_agent.pathPending && _agent.remainingDistance <= _agent.stoppingDistance + 0.35f)
+            _stateTimer += Time.deltaTime;
+            if (_stateTimer >= patrolWaitTime)
             {
-                _stateTimer += Time.deltaTime;
-                if (_stateTimer >= patrolWaitTime)
-                {
-                    _stateTimer = 0f;
-                    if (EnemyPerception.TrySamplePatrolPoint(_spawnOrigin, patrolRadius, out Vector3 pt))
-                        _agent.SetDestination(pt);
-                }
+                _stateTimer = 0f;
+                if (EnemyPerception.TrySamplePatrolPoint(_spawnOrigin, patrolRadius, out Vector3 pt)) _agent.SetDestination(pt);
             }
         }
 
-        private void UpdateChase(float distToPlayer)
+        private void UpdateChase(float dist)
         {
-            if (distToPlayer > loseTargetRadius && !_hasLineOfSight)
+            if (!relentlessChase && dist > loseTargetRadius && !_hasLineOfSight)
             {
                 _hasSeenPlayer = false;
                 TransitionToState(RangedAIState.Patrol);
                 return;
             }
 
-            if (_hasLineOfSight && distToPlayer <= attackRange)
+            if (_hasLineOfSight && dist <= attackRange)
             {
-                TransitionToState(distToPlayer < retreatRange ? RangedAIState.Retreat : RangedAIState.Attack);
+                TransitionToState(dist < retreatRange ? RangedAIState.Retreat : RangedAIState.Attack);
                 return;
             }
 
-            if (Time.time >= _nextRepathTime)
+            if (_agent.isOnNavMesh && Time.time >= _nextRepathTime)
             {
                 _nextRepathTime = Time.time + repathInterval;
                 _agent.isStopped = false;
-                _agent.SetDestination(_hasSeenPlayer ? _lastKnownPlayerPos : targetPlayer.position);
-            }
-
-            if (!_hasLineOfSight && !_agent.pathPending && _agent.remainingDistance <= _agent.stoppingDistance + 0.6f)
-            {
-                _stateTimer += Time.deltaTime;
-                if (_stateTimer >= 2.0f) { _hasSeenPlayer = false; TransitionToState(RangedAIState.Patrol); }
+                _agent.SetDestination(relentlessChase ? targetPlayer.position : (_hasSeenPlayer ? _lastKnownPlayerPos : targetPlayer.position));
             }
         }
 
-        private void UpdateAttack(float distToPlayer)
+        private void UpdateAttack(float dist)
         {
             if (!_isFiring)
             {
-                if (!_hasLineOfSight || distToPlayer > attackExitRange) { TransitionToState(RangedAIState.Chase); return; }
-                if (distToPlayer < retreatRange) { TransitionToState(RangedAIState.Retreat); return; }
+                if (!_hasLineOfSight || dist > attackExitRange) { TransitionToState(RangedAIState.Chase); return; }
+                if (dist < retreatRange) { TransitionToState(RangedAIState.Retreat); return; }
             }
 
-            _agent.isStopped = true;
-            RotateTowardPlayer();
-
+            if (_agent.isOnNavMesh) _agent.isStopped = true;
+            RotateTowardPlayer(10f);
             if (!_isFiring && _hasLineOfSight && Time.time >= _lastFireTime + fireCooldown)
                 StartCoroutine(PerformRangedAttackRoutine());
         }
 
-        private void UpdateRetreat(float distToPlayer)
+        private void UpdateRetreat(float dist)
         {
             if (!_hasLineOfSight) { TransitionToState(RangedAIState.Chase); return; }
-            if (distToPlayer >= retreatSafeRange) { TransitionToState(RangedAIState.Attack); return; }
+            if (dist >= retreatSafeRange) { TransitionToState(RangedAIState.Attack); return; }
 
-            if (Time.time >= _nextRepathTime)
+            if (_agent.isOnNavMesh && Time.time >= _nextRepathTime)
             {
                 _nextRepathTime = Time.time + repathInterval;
-                if (EnemyPerception.TrySampleRetreatPoint(transform, targetPlayer, 6f, out Vector3 retreatPos))
+                if (EnemyPerception.TrySampleRetreatPoint(transform, targetPlayer, 6f, out Vector3 rp))
                 {
                     _agent.isStopped = false;
-                    _agent.SetDestination(retreatPos);
+                    _agent.SetDestination(rp);
                 }
-                else
-                {
-                    // Cornered with no walkable fallback: stand ground and fight back instead of stalling.
-                    TransitionToState(RangedAIState.Attack);
-                }
+                else TransitionToState(RangedAIState.Attack);
             }
         }
 
@@ -218,30 +240,29 @@ namespace ProjectRac.Enemy
             if (projectilePool == null) projectilePool = FindAnyObjectByType<EnemyProjectilePool>();
             if (projectilePool == null) return;
 
-            Vector3 spawnOrigin = _firePoint != null
-                ? _firePoint.position
-                : transform.position + transform.forward * 0.85f + Vector3.up * 1.25f;
-
-            Vector3 direction = ((targetPlayer.position + Vector3.up * 1.15f) - spawnOrigin).normalized;
-            if (direction == Vector3.zero) direction = transform.forward;
-            projectilePool.SpawnProjectile(spawnOrigin, direction, projectileDamage, projectileSpeed, transform);
+            Vector3 origin = _firePoint != null ? _firePoint.position : transform.position + transform.forward * 0.85f + Vector3.up * 1.35f;
+            Vector3 dir = ((targetPlayer.position + Vector3.up * 1.15f) - origin).normalized;
+            if (dir == Vector3.zero) dir = transform.forward;
+            projectilePool.SpawnProjectile(origin, dir, projectileDamage, projectileSpeed, transform);
         }
 
-        private void RotateTowardPlayer()
+        private void RotateTowardPlayer(float speed)
         {
             Vector3 lookDir = targetPlayer.position - transform.position;
             lookDir.y = 0f;
             if (lookDir.sqrMagnitude > 0.01f)
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 10f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * speed);
         }
 
-        private void TransitionToState(RangedAIState newState)
+        public void TransitionToState(RangedAIState newState)
         {
             currentState = newState;
             _stateTimer = 0f;
             _nextRepathTime = 0f;
+            if (_agent == null || !_agent.isOnNavMesh) return;
 
-            if (currentState == RangedAIState.Patrol)
+            if (currentState == RangedAIState.Idle || currentState == RangedAIState.Attack) _agent.isStopped = true;
+            else if (currentState == RangedAIState.Patrol)
             {
                 _agent.speed = patrolSpeed; _agent.stoppingDistance = 0.5f; _agent.isStopped = false;
                 if (EnemyPerception.TrySamplePatrolPoint(_spawnOrigin, patrolRadius, out Vector3 pt)) _agent.SetDestination(pt);
@@ -249,10 +270,7 @@ namespace ProjectRac.Enemy
             else if (currentState == RangedAIState.Chase)
             {
                 _agent.speed = chaseSpeed; _agent.stoppingDistance = 1.0f; _agent.isStopped = false;
-            }
-            else if (currentState == RangedAIState.Attack)
-            {
-                _agent.isStopped = true;
+                if (targetPlayer != null) _agent.SetDestination(targetPlayer.position);
             }
             else if (currentState == RangedAIState.Retreat)
             {
@@ -263,8 +281,9 @@ namespace ProjectRac.Enemy
 
         private void HandleDamageTaken(Vector3 hitPoint)
         {
+            if (_encounterHeld) return;
             if (targetPlayer != null) { _hasSeenPlayer = true; _lastKnownPlayerPos = targetPlayer.position; }
-            if (currentState == RangedAIState.Patrol) TransitionToState(RangedAIState.Chase);
+            if (currentState == RangedAIState.Patrol || currentState == RangedAIState.Idle) TransitionToState(RangedAIState.Chase);
         }
 
         private void HandleDeath()
@@ -279,10 +298,9 @@ namespace ProjectRac.Enemy
         {
             if (targetPlayer == null)
             {
-                var playerObj = GameObject.FindWithTag("Player");
-                if (playerObj != null) targetPlayer = playerObj.transform;
+                var p = GameObject.FindWithTag("Player");
+                if (p != null) targetPlayer = p.transform;
             }
-
             if (projectilePool == null) projectilePool = FindAnyObjectByType<EnemyProjectilePool>();
         }
     }

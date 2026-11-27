@@ -18,6 +18,7 @@ namespace ProjectRac.Interaction
         [SerializeField] private float spawnDistanceBehind = 3.2f;
         [SerializeField] private Vector3 fallbackSpawnPosition = new Vector3(14.5f, 0f, -6.3f);
         [SerializeField] private bool turnPlayerToFaceEnemy = true;
+        [SerializeField] private float cameraTurnDuration = 0.65f;
         [SerializeField] private float cameraFacePitch = 3f;
 
         [Header("Ambush Visual Novel Dialogues")]
@@ -85,9 +86,22 @@ namespace ProjectRac.Interaction
 
             if (turnPlayerToFaceEnemy && _spawnedEnemy != null)
             {
-                TurnPlayerTowardEnemy(playerTransform, _spawnedEnemy.transform.position);
+                SmoothCameraTurn.TurnToTarget(
+                    this,
+                    playerTransform,
+                    _spawnedEnemy.transform.position + Vector3.up * 1.25f,
+                    cameraTurnDuration,
+                    cameraFacePitch,
+                    () => StartAmbushDialogueOrChase(playerTransform));
             }
+            else
+            {
+                StartAmbushDialogueOrChase(playerTransform);
+            }
+        }
 
+        private void StartAmbushDialogueOrChase(Transform playerTransform)
+        {
             if (visualNovelUI == null)
             {
                 visualNovelUI = FindAnyObjectByType<VisualNovelDialogueUI>(FindObjectsInactive.Include);

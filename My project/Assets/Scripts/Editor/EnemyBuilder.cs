@@ -74,6 +74,21 @@ namespace ProjectRac.Editor
 
         public static GameObject SpawnRangedEnemy(Transform parent, Vector3 spawnPosition, EnemyProjectilePool pool = null)
         {
+            GameObject mordomoPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(Enemy.MordomoEnemyAssetSetup.PrefabPath);
+            if (mordomoPrefab != null)
+            {
+                GameObject existing = GameObject.Find("RangedEnemy");
+                if (existing != null) Undo.DestroyObjectImmediate(existing);
+
+                GameObject inst = (GameObject)PrefabUtility.InstantiatePrefab(mordomoPrefab, parent);
+                inst.name = "RangedEnemy";
+                inst.transform.position = spawnPosition;
+                var ai = inst.GetComponent<EnemyRangedAI>();
+                if (ai != null && pool != null) ai.BindProjectilePool(pool);
+                Undo.RegisterCreatedObjectUndo(inst, "Create RangedEnemy");
+                return inst;
+            }
+
             GameObject enemyObj = CreateBaseEnemy(parent, "RangedEnemy", spawnPosition, 2.8f, 1.0f);
 
             var health = enemyObj.AddComponent<EnemyHealth>();

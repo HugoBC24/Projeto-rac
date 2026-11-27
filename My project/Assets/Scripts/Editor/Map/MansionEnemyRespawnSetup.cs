@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
 using ProjectRac.Enemy;
 using ProjectRac.Interaction;
 
@@ -10,18 +12,16 @@ namespace ProjectRac.Editor.Map
     {
         private const string BonecaPrefabPath = "Assets/Prefabs/Enemies/Boneca_MeleeEnemy.prefab";
         private const string MordomoPrefabPath = "Assets/Prefabs/Enemies/Mordomo_RangedEnemy.prefab";
+        private const float FloorSplitY = 2.5f;
 
         [MenuItem("ProjectRac/Map/Setup Enemy Doors, Patrol & Respawn")]
         public static object Apply()
         {
-            PS2VisualSetupBuilder.ApplyPS2Style();
-
             EnsureDoorOpenerOnPrefab(BonecaPrefabPath);
             EnsureDoorOpenerOnPrefab(MordomoPrefabPath);
 
-            // Ensure all existing scene enemies have EnemyDoorOpener
             int sceneEnemiesUpdated = 0;
-            var healths = Object.FindObjectsByType<EnemyHealth>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var healths = Object.FindObjectsByType<EnemyHealth>(FindObjectsInactive.Include);
             for (int i = 0; i < healths.Length; i++)
             {
                 if (healths[i].GetComponent<EnemyDoorOpener>() == null)
@@ -31,9 +31,8 @@ namespace ProjectRac.Editor.Map
                 }
             }
 
-            // Configure interior doors vs exterior main entrance door
             int interiorDoors = 0;
-            var doors = Object.FindObjectsByType<DoorController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var doors = Object.FindObjectsByType<DoorController>(FindObjectsInactive.Include);
             for (int i = 0; i < doors.Length; i++)
             {
                 bool isMainEntrance = doors[i].transform.parent != null
@@ -46,7 +45,6 @@ namespace ProjectRac.Editor.Map
                 if (!isMainEntrance) interiorDoors++;
             }
 
-            // Setup MansionEnemySystem with MansionPatrolNetwork + EnemyRespawnManager
             GameObject systemRoot = GameObject.Find("MansionEnemySystem");
             if (systemRoot == null)
             {
@@ -59,6 +57,14 @@ namespace ProjectRac.Editor.Map
 
             var respawnManager = systemRoot.GetComponent<EnemyRespawnManager>();
             if (respawnManager == null) respawnManager = Undo.AddComponent<EnemyRespawnManager>(systemRoot);
+
+            Transform f1Root = GetOrCreateChild(systemRoot.transform, "Floor1_SpawnPoints");
+            Transform f2Root = GetOrCreateChild(systemRoot.transform, "Floor2_SpawnPoints");
+
+            Transform[] f1Points = PopulateFloorSpawnPoints(f1Root, secondFloor: false);
+            Transform[] f2Points = PopulateFloorSpawnPoints(f2Root, secondFloor: true);
+
+            patrolNetwork.ConfigurePoints(f1Root, f1Points, f2Root, f2Points);
 
             var bonecaPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BonecaPrefabPath);
             var mordomoPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(MordomoPrefabPath);
@@ -75,12 +81,66 @@ namespace ProjectRac.Editor.Map
             return new
             {
                 ok = true,
-                fogEnabled = RenderSettings.fog,
                 sceneEnemiesUpdated,
                 interiorDoors,
+                floor1SpawnPoints = f1Points.Length,
+                floor2SpawnPoints = f2Points.Length,
                 hasBonecaPrefab = bonecaPrefab != null,
                 hasMordomoPrefab = mordomoPrefab != null
             };
+        }
+
+        private static Transform GetOrCreateChild(Transform parent, string name)
+        {
+            Transform existing = parent.Find(name);
+            if (existing != null) return existing;
+
+            GameObject obj = new GameObject(name);
+            Undo.RegisterCreatedObjectUndo(obj, "Create " + name);
+            obj.transform.SetParent(parent, false);
+            return obj.transform;
+        }
+
+        private static Transform[] PopulateFloorSpawnPoints(Transform container, bool secondFloor)
+        {
+            // Preserve user-placed points if already present
+            if (container.childCount > 0)
+            {
+                var existing = new Transform[container.childCount];
+                for (int i = 0; i < container.childCount; i++) existing[i] = container.GetChild(i);
+                return existing;
+            }
+
+            var created = new List<Transform>();
+            GameObject mansion = GameObject.Find("MansionMap");
+            Transform lightsRoot = mansion != null ? mansion.transform.Find("Lighting") : null;
+            if (lightsRoot != null)
+            {
+                var lights = lightsRoot.GetComponentsInChildren<Light>(true);
+                int idx = 1;
+                for (int i = 0; i < lights.Length; i++)
+                {
+                    Vector3 lightPos = lights[i].transform.position;
+                    bool lightIsF2 = lightPos.y >= FloorSplitY + 2.0f;
+                    if (lightIsF2 != secondFloor) continue;
+
+                    Vector3 probe = new Vector3(lightPos.x, secondFloor ? 4.0f : 0.2f, lightPos.z);
+                    Vector3 finalPos = probe;
+                    if (NavMesh.SamplePosition(probe, out NavMeshHit hit, 4.0f, NavMesh.AllAreas))
+                    {
+                        finalPos = hit.position;
+                    }
+
+                    string ptName = string.Format("Spawn_{0}_{1:D2}", secondFloor ? "F2" : "F1", idx++);
+                    GameObject pt = new GameObject(ptName);
+                    Undo.RegisterCreatedObjectUndo(pt, "Create " + ptName);
+                    pt.transform.SetParent(container, false);
+                    pt.transform.position = finalPos;
+                    created.Add(pt.transform);
+                }
+            }
+
+            return created.ToArray();
         }
 
         private static void EnsureDoorOpenerOnPrefab(string prefabPath)

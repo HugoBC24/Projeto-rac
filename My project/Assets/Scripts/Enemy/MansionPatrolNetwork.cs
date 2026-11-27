@@ -8,32 +8,24 @@ namespace ProjectRac.Enemy
     {
         public static MansionPatrolNetwork Instance { get; private set; }
 
-        [Header("Floor 1 Waypoints")]
-        [SerializeField] private Vector3[] floor1Waypoints =
-        {
-            new Vector3(-0.8f, 0.1f, -4.5f),   // Hall Center
-            new Vector3(1.2f, 0.1f, 3.4f),     // Corredor Norte F1
-            new Vector3(9.0f, 0.1f, -4.2f),    // Sala de Estar
-            new Vector3(-9.8f, 0.1f, -4.2f),   // Sala de Jantar
-            new Vector3(-9.8f, 0.1f, 6.4f),    // Cozinha
-            new Vector3(-0.5f, 0.1f, 7.6f),    // Lavanderia
-            new Vector3(9.3f, 0.1f, 6.4f)      // Biblioteca
-        };
+        [Header("Spawn & Patrol Point Containers (Empty GameObjects)")]
+        [SerializeField] private Transform floor1PointsRoot;
+        [SerializeField] private Transform floor2PointsRoot;
 
-        [Header("Floor 2 Waypoints")]
-        [SerializeField] private Vector3[] floor2Waypoints =
-        {
-            new Vector3(-0.5f, 3.95f, 3.4f),   // Mezanino / Corredor Norte F2
-            new Vector3(-0.7f, 3.95f, -9.6f),  // Corredor Sul F2
-            new Vector3(-10.8f, 3.95f, -3.2f), // Quarto da Filha
-            new Vector3(10.5f, 3.95f, -2.5f),  // Quarto dos Pais
-            new Vector3(3.9f, 3.95f, 7.6f),    // Suite
-            new Vector3(-7.7f, 3.95f, 7.6f)    // Quarto da Maid
-        };
+        [Header("Explicit Point Overrides (Optional)")]
+        [SerializeField] private Transform[] floor1Points;
+        [SerializeField] private Transform[] floor2Points;
 
+        [Header("Patrol Settings")]
         [SerializeField] private float minPatrolStepDistance = 5.0f;
+        [SerializeField] private float navMeshSampleRadius = 3.5f;
 
-        private readonly List<Vector3> _allWaypoints = new List<Vector3>(16);
+        private readonly List<Transform> _floor1 = new List<Transform>(16);
+        private readonly List<Transform> _floor2 = new List<Transform>(16);
+        private readonly List<Transform> _allPoints = new List<Transform>(32);
+
+        public int Floor1Count => _floor1.Count;
+        public int Floor2Count => _floor2.Count;
 
         private void Awake()
         {
@@ -51,29 +43,70 @@ namespace ProjectRac.Enemy
             if (Instance == this) Instance = null;
         }
 
-        private void RebuildCache()
+        public void ConfigurePoints(Transform f1Root, Transform[] f1Points, Transform f2Root, Transform[] f2Points)
         {
-            _allWaypoints.Clear();
-            if (floor1Waypoints != null) _allWaypoints.AddRange(floor1Waypoints);
-            if (floor2Waypoints != null) _allWaypoints.AddRange(floor2Waypoints);
+            floor1PointsRoot = f1Root;
+            floor1Points = f1Points;
+            floor2PointsRoot = f2Root;
+            floor2Points = f2Points;
+            RebuildCache();
+        }
+
+        public void RebuildCache()
+        {
+            _floor1.Clear();
+            _floor2.Clear();
+            _allPoints.Clear();
+
+            CollectPoints(floor1PointsRoot, floor1Points, _floor1);
+            CollectPoints(floor2PointsRoot, floor2Points, _floor2);
+
+            _allPoints.AddRange(_floor1);
+            _allPoints.AddRange(_floor2);
+        }
+
+        private static void CollectPoints(Transform root, Transform[] explicitList, List<Transform> target)
+        {
+            if (root != null)
+            {
+                for (int i = 0; i < root.childCount; i++)
+                {
+                    Transform child = root.GetChild(i);
+                    if (child != null && child.gameObject.activeInHierarchy)
+                    {
+                        target.Add(child);
+                    }
+                }
+            }
+
+            if (target.Count == 0 && explicitList != null)
+            {
+                for (int i = 0; i < explicitList.Length; i++)
+                {
+                    if (explicitList[i] != null) target.Add(explicitList[i]);
+                }
+            }
         }
 
         public bool TryGetRandomWaypoint(Vector3 currentPos, out Vector3 destination)
         {
-            if (_allWaypoints.Count == 0) RebuildCache();
-            if (_allWaypoints.Count == 0)
+            if (_allPoints.Count == 0) RebuildCache();
+            if (_allPoints.Count == 0)
             {
                 destination = currentPos;
                 return false;
             }
 
             float minDistSq = minPatrolStepDistance * minPatrolStepDistance;
-            for (int attempt = 0; attempt < 12; attempt++)
+            for (int attempt = 0; attempt < 16; attempt++)
             {
-                Vector3 candidate = _allWaypoints[Random.Range(0, _allWaypoints.Count)];
-                if ((candidate - currentPos).sqrMagnitude < minDistSq && attempt < 8) continue;
+                Transform t = _allPoints[Random.Range(0, _allPoints.Count)];
+                if (t == null) continue;
 
-                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 3.0f, NavMesh.AllAreas))
+                Vector3 candidate = t.position;
+                if ((candidate - currentPos).sqrMagnitude < minDistSq && attempt < 10) continue;
+
+                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, navMeshSampleRadius, NavMesh.AllAreas))
                 {
                     destination = hit.position;
                     return true;
@@ -86,26 +119,55 @@ namespace ProjectRac.Enemy
 
         public bool TryGetSpawnPointForFloor(bool secondFloor, out Vector3 spawnPos)
         {
-            Vector3[] pool = secondFloor ? floor2Waypoints : floor1Waypoints;
-            if (pool == null || pool.Length == 0)
+            if (_allPoints.Count == 0) RebuildCache();
+            List<Transform> pool = secondFloor ? _floor2 : _floor1;
+            if (pool.Count == 0)
             {
                 spawnPos = Vector3.zero;
                 return false;
             }
 
-            int startIdx = Random.Range(0, pool.Length);
-            for (int i = 0; i < pool.Length; i++)
+            int startIdx = Random.Range(0, pool.Count);
+            for (int i = 0; i < pool.Count; i++)
             {
-                Vector3 candidate = pool[(startIdx + i) % pool.Length];
-                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 3.0f, NavMesh.AllAreas))
+                Transform t = pool[(startIdx + i) % pool.Count];
+                if (t == null) continue;
+
+                if (NavMesh.SamplePosition(t.position, out NavMeshHit hit, navMeshSampleRadius, NavMesh.AllAreas))
                 {
                     spawnPos = hit.position;
                     return true;
                 }
             }
 
-            spawnPos = pool[0];
+            spawnPos = pool[0] != null ? pool[0].position : Vector3.zero;
             return false;
+        }
+
+        private void OnDrawGizmosSelected()
+        {
+            DrawGroupGizmos(floor1PointsRoot, floor1Points, Color.cyan);
+            DrawGroupGizmos(floor2PointsRoot, floor2Points, new Color(1f, 0.72f, 0.15f, 1f));
+        }
+
+        private static void DrawGroupGizmos(Transform root, Transform[] explicitList, Color color)
+        {
+            Gizmos.color = color;
+            if (root != null && root.childCount > 0)
+            {
+                for (int i = 0; i < root.childCount; i++)
+                {
+                    Transform c = root.GetChild(i);
+                    if (c != null) Gizmos.DrawSphere(c.position + Vector3.up * 0.25f, 0.3f);
+                }
+                return;
+            }
+
+            if (explicitList == null) return;
+            for (int i = 0; i < explicitList.Length; i++)
+            {
+                if (explicitList[i] != null) Gizmos.DrawSphere(explicitList[i].position + Vector3.up * 0.25f, 0.3f);
+            }
         }
     }
 }

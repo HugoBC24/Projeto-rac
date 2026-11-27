@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace ProjectRac.Enemy
 {
@@ -9,7 +10,8 @@ namespace ProjectRac.Enemy
         [Tooltip("Tempo em segundos ate um inimigo aleatorio spawnar apos ser derrotado.")]
         [SerializeField] private float respawnDelay = 20f;
         [SerializeField] private float floorSplitY = 2.5f;
-        [SerializeField] private bool requireAllInitialEnemiesDefeated = true;
+        [Tooltip("Quantas mortes na mansao sao necessarias para liberar o respawn aleatorio.")]
+        [SerializeField] private int killsToUnlockRespawn = 1;
         [SerializeField] private int maxSimultaneousRespawns = 1;
 
         [Header("References")]
@@ -21,19 +23,29 @@ namespace ProjectRac.Enemy
         public float RespawnDelay { get => respawnDelay; set => respawnDelay = Mathf.Max(0.1f, value); }
         public bool IsRespawnLoopUnlocked => _respawnUnlocked;
         public int ActiveRespawnedCount => _activeRespawned.Count;
+        public GameObject LastSpawnedEnemy { get; private set; }
 
-        private readonly HashSet<EnemyHealth> _initialEnemies = new HashSet<EnemyHealth>();
         private readonly HashSet<EnemyHealth> _activeRespawned = new HashSet<EnemyHealth>();
+        private int _mansionKills;
         private bool _respawnUnlocked;
         private bool _timerRunning;
         private float _spawnCountdown;
+
+        private void OnEnable()
+        {
+            EnemyHealth.OnAnyEnemyDied += HandleAnyEnemyDied;
+        }
+
+        private void OnDisable()
+        {
+            EnemyHealth.OnAnyEnemyDied -= HandleAnyEnemyDied;
+        }
 
         private void Start()
         {
             if (patrolNetwork == null) patrolNetwork = FindAnyObjectByType<MansionPatrolNetwork>();
             if (projectilePool == null) projectilePool = FindAnyObjectByType<EnemyProjectilePool>();
             ResolvePlayer();
-            RegisterInitialEnemies();
         }
 
         private void Update()
@@ -55,38 +67,24 @@ namespace ProjectRac.Enemy
             projectilePool = pool;
         }
 
-        private void RegisterInitialEnemies()
+        private void HandleAnyEnemyDied(EnemyHealth enemy)
         {
-            var found = FindObjectsByType<EnemyHealth>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            for (int i = 0; i < found.Length; i++)
+            if (enemy == null) return;
+
+            bool wasRespawned = _activeRespawned.Remove(enemy);
+            if (!wasRespawned)
             {
-                EnemyHealth eh = found[i];
-                if (eh == null || eh.IsDead) continue;
-                _initialEnemies.Add(eh);
-                eh.OnDeath += () => HandleInitialEnemyDeath(eh);
+                _mansionKills++;
+                if (!_respawnUnlocked && _mansionKills >= Mathf.Max(1, killsToUnlockRespawn))
+                {
+                    _respawnUnlocked = true;
+                }
             }
 
-            if (_initialEnemies.Count == 0)
+            if (_respawnUnlocked)
             {
-                UnlockRespawnLoop();
+                TryScheduleNextSpawn();
             }
-        }
-
-        private void HandleInitialEnemyDeath(EnemyHealth enemy)
-        {
-            _initialEnemies.Remove(enemy);
-            if (_respawnUnlocked) return;
-
-            if (!requireAllInitialEnemiesDefeated || _initialEnemies.Count == 0)
-            {
-                UnlockRespawnLoop();
-            }
-        }
-
-        private void UnlockRespawnLoop()
-        {
-            _respawnUnlocked = true;
-            TryScheduleNextSpawn();
         }
 
         private void TryScheduleNextSpawn()
@@ -116,6 +114,12 @@ namespace ProjectRac.Enemy
 
             GameObject instance = Instantiate(prefab, spawnPos, Quaternion.identity);
             instance.name = prefab.name + "_Respawned";
+            LastSpawnedEnemy = instance;
+
+            if (instance.TryGetComponent<NavMeshAgent>(out var agent))
+            {
+                agent.Warp(spawnPos);
+            }
 
             if (instance.GetComponent<EnemyDoorOpener>() == null)
             {
@@ -137,16 +141,9 @@ namespace ProjectRac.Enemy
             {
                 health.SetInvulnerable(false);
                 _activeRespawned.Add(health);
-                health.OnDeath += () => HandleRespawnedEnemyDeath(health);
             }
 
             return instance;
-        }
-
-        private void HandleRespawnedEnemyDeath(EnemyHealth enemy)
-        {
-            _activeRespawned.Remove(enemy);
-            TryScheduleNextSpawn();
         }
 
         private void ResolvePlayer()

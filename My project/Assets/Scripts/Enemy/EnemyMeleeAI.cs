@@ -133,7 +133,9 @@ namespace ProjectRac.Enemy
         private void UpdatePatrol(float distToPlayer)
         {
             if (distToPlayer <= detectionRadius) { TransitionToState(AIState.Chase); return; }
-            if (!_agent.isOnNavMesh || _agent.pathPending || _agent.remainingDistance > _agent.stoppingDistance + 0.3f) return;
+            if (!_agent.isOnNavMesh || _agent.pathPending) return;
+            if (!_agent.hasPath) { SetRandomPatrolDestination(); return; }
+            if (_agent.remainingDistance > _agent.stoppingDistance + 0.3f) return;
 
             _stateTimer += Time.deltaTime;
             if (_stateTimer >= patrolWaitTime) { _stateTimer = 0f; SetRandomPatrolDestination(); }

@@ -171,7 +171,9 @@ namespace ProjectRac.Enemy
         private void UpdatePatrol(float dist)
         {
             if (dist <= detectionRadius && _hasLineOfSight) { TransitionToState(RangedAIState.Chase); return; }
-            if (!_agent.isOnNavMesh || _agent.pathPending || _agent.remainingDistance > _agent.stoppingDistance + 0.35f) return;
+            if (!_agent.isOnNavMesh || _agent.pathPending) return;
+            if (!_agent.hasPath) { SetRandomPatrolDestination(); return; }
+            if (_agent.remainingDistance > _agent.stoppingDistance + 0.35f) return;
 
             _stateTimer += Time.deltaTime;
             if (_stateTimer >= patrolWaitTime)

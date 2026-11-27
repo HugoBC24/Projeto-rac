@@ -22,6 +22,7 @@ namespace ProjectRac.Enemy
         public event Action<float, float> OnHealthChanged;
         public event Action<Vector3> OnDamageTaken;
         public event Action OnDeath;
+        public static event Action<EnemyHealth> OnAnyEnemyDied;
 
         private Collider _collider;
         private readonly List<Renderer> _renderers = new List<Renderer>();
@@ -135,6 +136,7 @@ namespace ProjectRac.Enemy
             if (_collider != null) _collider.enabled = false;
 
             OnDeath?.Invoke();
+            OnAnyEnemyDied?.Invoke(this);
             StartCoroutine(DeathSinkRoutine());
         }
 

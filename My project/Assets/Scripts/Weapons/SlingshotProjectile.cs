@@ -105,13 +105,6 @@ namespace ProjectRac.Weapons
                 collision.rigidbody.AddForceAtPosition(impulse, hitPoint, ForceMode.Impulse);
             }
 
-            // Only trigger explicit shootable targets (never doors, drawers, cabinets, notes, or pickups)
-            var testTarget = collision.collider.GetComponentInParent<InteractableTestObject>();
-            if (testTarget != null)
-            {
-                testTarget.Interact();
-            }
-
             Recycle();
         }
 

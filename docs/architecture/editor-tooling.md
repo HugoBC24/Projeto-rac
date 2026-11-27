@@ -26,7 +26,7 @@ Scripts exclusivos do Unity Editor (`Assets/Scripts/Editor/`) usados para montar
 | `AmmoHUDBuilder.cs` | 126 | Helper estatico | Constroi o painel de municao (`AmmoHUD`) e conecta ao inventario/armas |
 | `HealthHUDBuilder.cs` | 93 | Helper estatico | Constroi a barra de vida (`PlayerHealthBarUI`) e vincula a `PlayerHealth` |
 | `EnemyBuilder.cs` | 156 | Helper estatico | Instancia `MeleeEnemy` (`80 HP`), `RangedEnemy` (`60 HP` com materiais URP persistentes em `Assets/Materials/Enemies/`) e `EnemyProjectilePool` sob `ShootPools` |
-| `SlingshotPrefabGenerator.cs` | 99 | `[MenuItem("Tools/Generate Slingshot Prefab")]` | Gera `Assets/Prefabs/Slingshot_Viewmodel.prefab` |
+| `SlingshotPrefabGenerator.cs` | 151 | `[MenuItem("Tools/Generate Slingshot Prefab")]` | Gera `Assets/Prefabs/Slingshot_Viewmodel.prefab` com materiais URP persistentes (madeira/borracha/couro) e o braco direito `PlayerArm_Right` (`Assets/Models/Player/BracoProta_Arm.fbx`) segurando o cabo |
 | `TestCubeCreator.cs` | 22 | Helper estatico | Utilitario minimo de criacao de cubo de teste |
 
 ## Relacao com Code Mode

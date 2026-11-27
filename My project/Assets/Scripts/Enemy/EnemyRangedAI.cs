@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
@@ -46,7 +47,9 @@ namespace ProjectRac.Enemy
         public RangedAIState CurrentState => currentState;
         public bool HasLineOfSight => _hasLineOfSight;
         public bool IsFiring => _isFiring;
+        public float AttackCycleDuration => Mathf.Max(0.35f, fireCooldown);
         public Transform FirePoint => _firePoint;
+        public event Action OnAttackStarted;
 
         private NavMeshAgent _agent;
         private EnemyHealth _health;
@@ -224,17 +227,24 @@ namespace ProjectRac.Enemy
         private IEnumerator PerformRangedAttackRoutine()
         {
             _isFiring = true;
+            _lastFireTime = Time.time;
+            OnAttackStarted?.Invoke();
+
+            float cycle = AttackCycleDuration;
+            float windup = Mathf.Clamp(attackWindup, 0.1f, cycle * 0.75f);
+            float recovery = Mathf.Max(0f, cycle - windup);
+
             EnemyRangedVisuals.SetMuzzleColor(_muzzleRenderer, _muzzleBlock, EnemyRangedVisuals.ChargingMuzzleColor);
-            yield return new WaitForSeconds(attackWindup);
+            yield return new WaitForSeconds(windup);
 
             if (_health != null && !_health.IsDead && targetPlayer != null
                 && EnemyPerception.HasLineOfSight(transform, targetPlayer, losObstructionLayers))
             {
                 FireProjectile();
-                _lastFireTime = Time.time;
             }
 
             EnemyRangedVisuals.SetMuzzleColor(_muzzleRenderer, _muzzleBlock, EnemyRangedVisuals.IdleMuzzleColor);
+            if (recovery > 0.01f) yield return new WaitForSeconds(recovery);
             _isFiring = false;
         }
 

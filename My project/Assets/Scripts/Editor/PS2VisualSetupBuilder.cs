@@ -144,13 +144,13 @@ namespace ProjectRac.Editor
 
             var colorAdj = profile.TryGet<ColorAdjustments>(out var existingColor) ? existingColor : profile.Add<ColorAdjustments>(true);
             colorAdj.postExposure.overrideState = true;
-            colorAdj.postExposure.value = 0.05f;
+            colorAdj.postExposure.value = -0.15f;
             colorAdj.contrast.overrideState = true;
             colorAdj.contrast.value = 10f;
             colorAdj.saturation.overrideState = true;
             colorAdj.saturation.value = -14f;
             colorAdj.colorFilter.overrideState = true;
-            colorAdj.colorFilter.value = new Color(0.97f, 0.95f, 0.89f, 1f);
+            colorAdj.colorFilter.value = new Color(0.86f, 0.91f, 1.00f, 1f);
 
             // Light base vignette (0.14) so StaminaExhaustionPostProcess (0.48) reads unmistakably when exhausted.
             var vignette = profile.TryGet<Vignette>(out var existingVig) ? existingVig : profile.Add<Vignette>(true);
@@ -192,11 +192,12 @@ namespace ProjectRac.Editor
         {
             // Balanced ambient and warm interior lights so hallways stay legible without a flashlight.
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.16f, 0.165f, 0.18f, 1f);
+            RenderSettings.ambientLight = new Color(0.15f, 0.16f, 0.19f, 1f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = new Color(0.035f, 0.040f, 0.048f, 1f);
+            RenderSettings.fogColor = new Color(0.030f, 0.038f, 0.055f, 1f);
             RenderSettings.fogDensity = 0.028f;
+            ConfigureNightMoonSkybox();
 
             GameObject dirLightObj = GameObject.Find("Directional Light");
             if (dirLightObj != null && dirLightObj.TryGetComponent<Light>(out var dirLight))
@@ -259,6 +260,17 @@ namespace ProjectRac.Editor
             {
                 Undo.RecordObject(fps, "Lower Player Jump Height");
                 fps.SetJumpHeight(0.85f);
+            }
+        }
+
+        private static void ConfigureNightMoonSkybox()
+        {
+            const string skyMatPath = "Assets/Materials/Skyboxes/Mat_NightMoon_Skybox.mat";
+            Material skyMat = AssetDatabase.LoadAssetAtPath<Material>(skyMatPath);
+            if (skyMat != null)
+            {
+                RenderSettings.skybox = skyMat;
+                DynamicGI.UpdateEnvironment();
             }
         }
 

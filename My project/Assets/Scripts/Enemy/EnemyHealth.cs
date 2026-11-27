@@ -17,6 +17,7 @@ namespace ProjectRac.Enemy
         public float MaxHealth => maxHealth;
         public float CurrentHealth { get; private set; }
         public bool IsDead { get; private set; }
+        public bool IsInvulnerable { get; private set; }
 
         public event Action<float, float> OnHealthChanged;
         public event Action<Vector3> OnDamageTaken;
@@ -49,9 +50,14 @@ namespace ProjectRac.Enemy
             CacheRenderers();
         }
 
+        public void SetInvulnerable(bool invulnerable)
+        {
+            IsInvulnerable = invulnerable;
+        }
+
         public void TakeDamage(float amount, Vector3 hitPoint, Vector3 hitDirection)
         {
-            if (IsDead || amount <= 0f) return;
+            if (IsDead || IsInvulnerable || amount <= 0f) return;
 
             CurrentHealth = Mathf.Max(0f, CurrentHealth - amount);
             OnHealthChanged?.Invoke(CurrentHealth, maxHealth);

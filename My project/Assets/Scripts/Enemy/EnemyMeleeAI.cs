@@ -83,6 +83,7 @@ namespace ProjectRac.Enemy
         {
             _initialized = true;
             _ambushHeld = true;
+            _health?.SetInvulnerable(true);
             BindTarget(lookTarget);
             TransitionToState(AIState.Idle);
             FaceTarget(targetPlayer, immediate: true);
@@ -94,6 +95,7 @@ namespace ProjectRac.Enemy
             _initialized = true;
             _ambushHeld = false;
             relentlessChase = true;
+            _health?.SetInvulnerable(false);
             if (target != null) BindTarget(target);
             else ResolveTarget();
             TransitionToState(AIState.Chase);

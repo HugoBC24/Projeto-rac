@@ -34,6 +34,7 @@ namespace ProjectRac.UI
         [SerializeField] private UnityEngine.UI.Image rightPortrait;
 
         public static bool IsActive { get; private set; }
+        public event Action<int, bool> OnLineStarted;
         public int CurrentLineIndex => _currentIndex;
         public int LineCount => dialogueLines != null ? dialogueLines.Count : 0;
         public bool IsTyping => _isTyping;
@@ -46,7 +47,7 @@ namespace ProjectRac.UI
         private List<VisualNovelDialogueLine> _activeLines;
         private Action _onSequenceComplete;
         private int _currentIndex = -1, _openedFrame = -1;
-        private bool _isDialogueVisible, _isTyping, _hasContinueBasePos;
+        private bool _isDialogueVisible, _isTyping, _hasContinueBasePos, _isIntroSequence;
         private string _currentFullText = "";
         private float _revealedChars;
         private Vector2 _continueBasePos;
@@ -150,6 +151,7 @@ namespace ProjectRac.UI
             if (_restoreRoutine != null) { StopCoroutine(_restoreRoutine); _restoreRoutine = null; }
 
             _activeLines = customLines;
+            _isIntroSequence = ReferenceEquals(customLines, dialogueLines);
             _onSequenceComplete = onComplete;
             _gameplayLock.Pause(transform, hideGameplayHud, hideWeaponViewmodel);
             IsActive = true;
@@ -207,6 +209,8 @@ namespace ProjectRac.UI
                 _audioSource.Stop();
                 _audioSource.PlayOneShot(line.voiceClip, 0.9f);
             }
+
+            OnLineStarted?.Invoke(index, _isIntroSequence);
         }
 
         private void UpdateTypewriter()

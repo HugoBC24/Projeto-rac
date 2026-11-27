@@ -91,6 +91,7 @@ namespace ProjectRac.Enemy
             {
                 _initialized = true;
                 _encounterHeld = startInIdle;
+                if (startInIdle) _health?.SetInvulnerable(true);
                 TransitionToState(startInIdle ? RangedAIState.Idle : RangedAIState.Patrol);
             }
         }
@@ -109,6 +110,7 @@ namespace ProjectRac.Enemy
         {
             _initialized = true;
             _encounterHeld = true;
+            _health?.SetInvulnerable(true);
             if (lookTarget != null) targetPlayer = lookTarget;
             TransitionToState(RangedAIState.Idle);
         }
@@ -118,6 +120,7 @@ namespace ProjectRac.Enemy
             _initialized = true;
             _encounterHeld = false;
             relentlessChase = true;
+            _health?.SetInvulnerable(false);
             if (target != null) targetPlayer = target;
             else ResolveReferences();
             if (targetPlayer != null) { _hasSeenPlayer = true; _lastKnownPlayerPos = targetPlayer.position; }

@@ -25,7 +25,9 @@ namespace ProjectRac.Weapons
         [SerializeField] private AmmoHUD ammoHUD;
         [SerializeField] private SlingshotChargeHUD chargeHUD;
 
-        [Header("Launch Force & Charge Settings")]
+        [Header("Ammo & Launch Settings")]
+        [SerializeField] private int currentAmmo = 0;
+        [SerializeField] private int maxAmmo = 40;
         [SerializeField] private float minLaunchForce = 22f;
         [SerializeField] private float maxLaunchForce = 40f;
         [SerializeField] private float maxChargeTime = 0.8f;
@@ -36,7 +38,9 @@ namespace ProjectRac.Weapons
 
         public string WeaponName => weaponName;
         public int SlotIndex => slotIndex;
-        public bool IsEquipped { get; private set; } = true;
+        public bool IsEquipped { get; private set; } = false;
+        public int CurrentAmmo => currentAmmo;
+        public int MaxAmmo => maxAmmo;
         public float ChargeNormalized { get; private set; }
         public bool IsCharging { get; private set; }
 
@@ -150,8 +154,35 @@ namespace ProjectRac.Weapons
             HandleChargeAndShoot();
         }
 
+        public int AddAmmo(int amount)
+        {
+            if (amount <= 0 || currentAmmo >= maxAmmo) return 0;
+            int before = currentAmmo;
+            currentAmmo = Mathf.Min(maxAmmo, currentAmmo + amount);
+            RefreshHUD();
+            return currentAmmo - before;
+        }
+
+        public void SetAmmo(int amount)
+        {
+            currentAmmo = Mathf.Clamp(amount, 0, maxAmmo);
+            RefreshHUD();
+        }
+
         private void HandleChargeAndShoot()
         {
+            if (currentAmmo <= 0)
+            {
+                if (IsCharging)
+                {
+                    IsCharging = false;
+                    _chargeTimer = 0f;
+                    ChargeNormalized = 0f;
+                    chargeHUD?.UpdateCharge(false, 0f);
+                }
+                return;
+            }
+
             if (inputHandler.PrimaryActionHeld && Time.time >= _lastFireTime + fireCooldown)
             {
                 IsCharging = true;
@@ -202,9 +233,12 @@ namespace ProjectRac.Weapons
                 shootDirection = playerCamera.transform.forward;
             }
 
+            if (currentAmmo <= 0) return;
+            currentAmmo--;
             float launchSpeed = Mathf.Lerp(minLaunchForce, maxLaunchForce, ChargeNormalized);
             projectilePool.SpawnProjectile(spawnOrigin, shootDirection * launchSpeed, rootTransform);
             _lastFireTime = Time.time;
+            RefreshHUD();
 
             if (shootSound != null && _audioSource != null)
             {
@@ -216,7 +250,7 @@ namespace ProjectRac.Weapons
         {
             if (ammoHUD != null && IsEquipped)
             {
-                ammoHUD.UpdateAmmo(weaponName, 1, -1, false);
+                ammoHUD.UpdateAmmo(weaponName, currentAmmo, maxAmmo, false);
             }
         }
     }

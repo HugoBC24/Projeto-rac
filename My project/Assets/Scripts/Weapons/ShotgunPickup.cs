@@ -13,8 +13,11 @@ namespace ProjectRac.Weapons
         [SerializeField] private Vector3 modelRotation = new Vector3(0f, 35f, 0f);
         [SerializeField] private Vector3 modelScale = new Vector3(1.8f, 1.8f, 1.8f);
 
-        [Header("Audio Feedback")]
+        [Header("Ammo & Audio")]
+        [SerializeField] private int totalAmmo = 30;
         [SerializeField] private AudioClip pickupSound;
+
+        public void ConfigureAmmo(int ammo) => totalAmmo = Mathf.Max(1, ammo);
 
         private GameObject _modelInstance;
         private bool _isPickedUp;
@@ -81,7 +84,7 @@ namespace ProjectRac.Weapons
             if (inventory != null)
             {
                 _isPickedUp = true;
-                inventory.UnlockShotgun(autoEquip: true);
+                inventory.UnlockShotgun(totalAmmo, autoEquip: true);
 
                 if (pickupSound != null)
                 {

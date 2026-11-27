@@ -26,6 +26,7 @@ namespace ProjectRac.Weapons
         [Header("Ammo & Reload Settings (Inspector)")]
         [SerializeField] private int maxAmmo = 6;
         [SerializeField] private int currentAmmo = 6;
+        [SerializeField] private int reserveAmmo = 24;
         [SerializeField] private float reloadDuration = 1.8f;
         [SerializeField] private AudioClip reloadSound;
 
@@ -48,6 +49,8 @@ namespace ProjectRac.Weapons
         public bool IsEquipped { get; private set; }
         public int CurrentAmmo => currentAmmo;
         public int MaxAmmo => maxAmmo;
+        public int ReserveAmmo => reserveAmmo;
+        public int TotalAmmo => currentAmmo + reserveAmmo;
         public bool IsReloading => _isReloading;
         public Transform ShootPoint => shootPoint;
 
@@ -168,25 +171,31 @@ namespace ProjectRac.Weapons
             }
         }
 
+        public void SetTotalAmmo(int totalAmmo)
+        {
+            int clamped = Mathf.Max(0, totalAmmo);
+            currentAmmo = Mathf.Min(maxAmmo, clamped);
+            reserveAmmo = Mathf.Max(0, clamped - currentAmmo);
+            RefreshHUD();
+        }
+
         public void StartReload()
         {
-            if (_isReloading || currentAmmo >= maxAmmo) return;
+            if (_isReloading || currentAmmo >= maxAmmo || reserveAmmo <= 0) return;
 
             _isReloading = true;
             _reloadTimer = 0f;
-
-            if (reloadSound != null && _audioSource != null)
-            {
-                _audioSource.PlayOneShot(reloadSound, 0.8f);
-            }
-
+            if (reloadSound != null && _audioSource != null) _audioSource.PlayOneShot(reloadSound, 0.8f);
             RefreshHUD();
         }
 
         private void CompleteReload()
         {
             _isReloading = false;
-            currentAmmo = maxAmmo;
+            int needed = maxAmmo - currentAmmo;
+            int loaded = Mathf.Min(needed, reserveAmmo);
+            currentAmmo += loaded;
+            reserveAmmo -= loaded;
             RefreshHUD();
         }
 
@@ -286,7 +295,7 @@ namespace ProjectRac.Weapons
         {
             if (ammoHUD != null && IsEquipped)
             {
-                ammoHUD.UpdateAmmo(weaponName, currentAmmo, maxAmmo, _isReloading);
+                ammoHUD.UpdateAmmo(weaponName, currentAmmo, reserveAmmo, _isReloading);
             }
         }
 

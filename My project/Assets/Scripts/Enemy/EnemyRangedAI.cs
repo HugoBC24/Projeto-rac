@@ -58,7 +58,7 @@ namespace ProjectRac.Enemy
         private MaterialPropertyBlock _muzzleBlock;
         private Vector3 _spawnOrigin, _lastKnownPlayerPos;
         private bool _hasLineOfSight, _hasSeenPlayer, _isFiring, _encounterHeld, _initialized;
-        private float _stateTimer, _nextPerceptionTime, _nextRepathTime, _lastFireTime = -999f;
+        private float _stateTimer, _stuckTimer, _nextPerceptionTime, _nextRepathTime, _lastFireTime = -999f;
 
         private void Awake()
         {
@@ -172,9 +172,32 @@ namespace ProjectRac.Enemy
         {
             if (dist <= detectionRadius && _hasLineOfSight) { TransitionToState(RangedAIState.Chase); return; }
             if (!_agent.isOnNavMesh || _agent.pathPending) return;
-            if (!_agent.hasPath) { SetRandomPatrolDestination(); return; }
-            if (_agent.remainingDistance > _agent.stoppingDistance + 0.35f) return;
+            if (!_agent.hasPath || _agent.pathStatus == NavMeshPathStatus.PathInvalid)
+            {
+                _stuckTimer = 0f;
+                SetRandomPatrolDestination();
+                return;
+            }
 
+            if (_agent.remainingDistance > _agent.stoppingDistance + 0.35f)
+            {
+                if (_agent.velocity.sqrMagnitude < 0.04f)
+                {
+                    _stuckTimer += Time.deltaTime;
+                    if (_stuckTimer >= 1.5f)
+                    {
+                        _stuckTimer = 0f;
+                        SetRandomPatrolDestination();
+                    }
+                }
+                else
+                {
+                    _stuckTimer = 0f;
+                }
+                return;
+            }
+
+            _stuckTimer = 0f;
             _stateTimer += Time.deltaTime;
             if (_stateTimer >= patrolWaitTime)
             {
@@ -290,6 +313,7 @@ namespace ProjectRac.Enemy
             if (currentState == RangedAIState.Idle || currentState == RangedAIState.Attack) _agent.isStopped = true;
             else if (currentState == RangedAIState.Patrol)
             {
+                _stuckTimer = 0f;
                 _agent.speed = patrolSpeed; _agent.stoppingDistance = 0.5f; _agent.isStopped = false;
                 SetRandomPatrolDestination();
             }

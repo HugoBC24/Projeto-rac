@@ -39,7 +39,7 @@ namespace ProjectRac.Enemy
         private EnemyMeleeAnimator _meleeAnimator;
         private PlayerHealth _playerHealth;
         private Vector3 _spawnOrigin;
-        private float _stateTimer, _lastAttackTime = -999f;
+        private float _stateTimer, _stuckTimer, _lastAttackTime = -999f;
         private bool _isAttacking, _ambushHeld, _initialized;
 
         private void Awake()
@@ -134,9 +134,32 @@ namespace ProjectRac.Enemy
         {
             if (distToPlayer <= detectionRadius) { TransitionToState(AIState.Chase); return; }
             if (!_agent.isOnNavMesh || _agent.pathPending) return;
-            if (!_agent.hasPath) { SetRandomPatrolDestination(); return; }
-            if (_agent.remainingDistance > _agent.stoppingDistance + 0.3f) return;
+            if (!_agent.hasPath || _agent.pathStatus == NavMeshPathStatus.PathInvalid)
+            {
+                _stuckTimer = 0f;
+                SetRandomPatrolDestination();
+                return;
+            }
 
+            if (_agent.remainingDistance > _agent.stoppingDistance + 0.35f)
+            {
+                if (_agent.velocity.sqrMagnitude < 0.04f)
+                {
+                    _stuckTimer += Time.deltaTime;
+                    if (_stuckTimer >= 1.5f)
+                    {
+                        _stuckTimer = 0f;
+                        SetRandomPatrolDestination();
+                    }
+                }
+                else
+                {
+                    _stuckTimer = 0f;
+                }
+                return;
+            }
+
+            _stuckTimer = 0f;
             _stateTimer += Time.deltaTime;
             if (_stateTimer >= patrolWaitTime) { _stateTimer = 0f; SetRandomPatrolDestination(); }
         }
@@ -187,13 +210,16 @@ namespace ProjectRac.Enemy
             }
             else if (currentState == AIState.Patrol)
             {
+                _stuckTimer = 0f;
                 _agent.speed = patrolSpeed;
+                _agent.stoppingDistance = 0.5f;
                 _agent.isStopped = false;
                 SetRandomPatrolDestination();
             }
             else if (currentState == AIState.Chase)
             {
                 _agent.speed = chaseSpeed;
+                _agent.stoppingDistance = attackRange * 0.85f;
                 _agent.isStopped = false;
                 if (targetPlayer != null) _agent.SetDestination(targetPlayer.position);
             }

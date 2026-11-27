@@ -23,6 +23,7 @@ namespace ProjectRac.Enemy
         private readonly List<Transform> _floor1 = new List<Transform>(16);
         private readonly List<Transform> _floor2 = new List<Transform>(16);
         private readonly List<Transform> _allPoints = new List<Transform>(32);
+        private NavMeshPath _pathCheck;
 
         public int Floor1Count => _floor1.Count;
         public int Floor2Count => _floor2.Count;
@@ -97,20 +98,40 @@ namespace ProjectRac.Enemy
                 return false;
             }
 
+            if (_pathCheck == null) _pathCheck = new NavMeshPath();
             float minDistSq = minPatrolStepDistance * minPatrolStepDistance;
-            for (int attempt = 0; attempt < 16; attempt++)
+            Vector3 fallbackPos = currentPos;
+            bool hasFallback = false;
+
+            for (int attempt = 0; attempt < 20; attempt++)
             {
                 Transform t = _allPoints[Random.Range(0, _allPoints.Count)];
                 if (t == null) continue;
 
                 Vector3 candidate = t.position;
-                if ((candidate - currentPos).sqrMagnitude < minDistSq && attempt < 10) continue;
+                if ((candidate - currentPos).sqrMagnitude < minDistSq && attempt < 12) continue;
 
                 if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, navMeshSampleRadius, NavMesh.AllAreas))
                 {
-                    destination = hit.position;
-                    return true;
+                    if (!hasFallback)
+                    {
+                        fallbackPos = hit.position;
+                        hasFallback = true;
+                    }
+
+                    if (NavMesh.CalculatePath(currentPos, hit.position, NavMesh.AllAreas, _pathCheck)
+                        && _pathCheck.status == NavMeshPathStatus.PathComplete)
+                    {
+                        destination = hit.position;
+                        return true;
+                    }
                 }
+            }
+
+            if (hasFallback)
+            {
+                destination = fallbackPos;
+                return true;
             }
 
             destination = currentPos;

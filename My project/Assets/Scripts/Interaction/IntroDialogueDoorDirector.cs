@@ -19,11 +19,13 @@ namespace ProjectRac.Interaction
         [Header("Dialogue Timing (1-Based Dialogue Numbers)")]
         [SerializeField] private int turnCameraAtDialogue = 3;
         [SerializeField] private int revealTextAtDialogue = 5;
+        [SerializeField] private int hideTextAtDialogue = 6;
 
         [Header("Camera & Fade Settings")]
         [SerializeField] private float cameraTurnDuration = 0.75f;
         [SerializeField] private float cameraPitchToDoor = 2f;
         [SerializeField] private float fadeInDuration = 1.2f;
+        [SerializeField] private float fadeOutDuration = 0.45f;
         [SerializeField, TextArea(2, 4)] private string doorMessage = "NAO HA SAIDA";
 
         public float CurrentDoorTextAlpha => doorTextCanvasGroup != null ? doorTextCanvasGroup.alpha : 0f;
@@ -91,6 +93,11 @@ namespace ProjectRac.Interaction
                 _hasRevealedText = true;
                 RevealDoorText();
             }
+
+            if (hideTextAtDialogue > 0 && dialogueNumber == hideTextAtDialogue)
+            {
+                HideDoorText();
+            }
         }
 
         private void TurnCameraToDoor()
@@ -116,24 +123,31 @@ namespace ProjectRac.Interaction
             }
 
             if (_fadeRoutine != null) StopCoroutine(_fadeRoutine);
-            _fadeRoutine = StartCoroutine(FadeInRoutine());
+            _fadeRoutine = StartCoroutine(FadeAlphaRoutine(0f, 1f, fadeInDuration));
         }
 
-        private IEnumerator FadeInRoutine()
+        private void HideDoorText()
+        {
+            if (doorTextCanvasGroup == null) return;
+            if (_fadeRoutine != null) StopCoroutine(_fadeRoutine);
+            _fadeRoutine = StartCoroutine(FadeAlphaRoutine(doorTextCanvasGroup.alpha, 0f, fadeOutDuration));
+        }
+
+        private IEnumerator FadeAlphaRoutine(float fromAlpha, float toAlpha, float duration)
         {
             doorTextCanvasGroup.gameObject.SetActive(true);
-            float duration = Mathf.Max(0.05f, fadeInDuration);
+            float safeDuration = Mathf.Max(0.05f, duration);
             float elapsed = 0f;
-            doorTextCanvasGroup.alpha = 0f;
+            doorTextCanvasGroup.alpha = fromAlpha;
 
-            while (elapsed < duration)
+            while (elapsed < safeDuration)
             {
                 elapsed += Time.unscaledDeltaTime;
-                doorTextCanvasGroup.alpha = Mathf.Clamp01(elapsed / duration);
+                doorTextCanvasGroup.alpha = Mathf.Lerp(fromAlpha, toAlpha, Mathf.Clamp01(elapsed / safeDuration));
                 yield return null;
             }
 
-            doorTextCanvasGroup.alpha = 1f;
+            doorTextCanvasGroup.alpha = toAlpha;
             _fadeRoutine = null;
         }
 

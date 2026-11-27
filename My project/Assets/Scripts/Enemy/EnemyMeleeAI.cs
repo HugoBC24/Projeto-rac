@@ -101,6 +101,17 @@ namespace ProjectRac.Enemy
             TransitionToState(AIState.Chase);
         }
 
+        public void ConfigureAsRoamingRespawn()
+        {
+            _initialized = true;
+            _ambushHeld = false;
+            startInIdle = false;
+            relentlessChase = false;
+            _health?.SetInvulnerable(false);
+            ResolveTarget();
+            TransitionToState(AIState.Patrol);
+        }
+
         private void Update()
         {
             if (_health != null && _health.IsDead) return;
@@ -188,6 +199,13 @@ namespace ProjectRac.Enemy
 
         private void SetRandomPatrolDestination()
         {
+            if (MansionPatrolNetwork.Instance != null
+                && MansionPatrolNetwork.Instance.TryGetRandomWaypoint(transform.position, out Vector3 mansionPoint))
+            {
+                _agent.SetDestination(mansionPoint);
+                return;
+            }
+
             Vector2 c = Random.insideUnitCircle * patrolRadius;
             Vector3 targetPos = _spawnOrigin + new Vector3(c.x, 0f, c.y);
             if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, patrolRadius, NavMesh.AllAreas))

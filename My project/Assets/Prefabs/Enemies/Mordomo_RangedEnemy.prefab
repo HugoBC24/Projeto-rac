@@ -45,6 +45,7 @@ GameObject:
   - component: {fileID: 7948823396374177460}
   - component: {fileID: 7190104325400314427}
   - component: {fileID: 1442514910846850137}
+  - component: {fileID: 5998900578604594366}
   m_Layer: 0
   m_Name: Mordomo_RangedEnemy
   m_TagString: Untagged
@@ -182,6 +183,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectRac.Enemy.EnemyRangedAnimator
   animator: {fileID: 618756527142871472}
   walkVelocityThreshold: 0.12
+  attackClipLength: 1.25
+--- !u!114 &5998900578604594366
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1379903216847064865}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c8e653e7794ad845ba4f8072a725f1d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectRac.Enemy.EnemyDoorOpener
+  checkInterval: 0.15
+  detectRadius: 1.25
+  forwardOffset: 0.85
+  chestHeight: 1
 --- !u!1001 &6484293277772061729
 PrefabInstance:
   m_ObjectHideFlags: 0

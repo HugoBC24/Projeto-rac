@@ -23,8 +23,10 @@ namespace ProjectRac.Interaction
 
         [Header("Navigation")]
         [SerializeField] private NavMeshObstacle navMeshObstacle;
+        [SerializeField] private bool allowEnemyOpen = true;
 
         public bool IsOpen { get; private set; }
+        public bool AllowEnemyOpen => allowEnemyOpen;
 
         private Quaternion _closedRotation;
         private Quaternion _targetRotation;
@@ -82,6 +84,12 @@ namespace ProjectRac.Interaction
         {
             doorPivot = pivot;
             navMeshObstacle = obstacle;
+        }
+
+        public void SetAllowEnemyOpen(bool allow)
+        {
+            allowEnemyOpen = allow;
+            SyncNavMeshObstacle();
         }
 
         public string GetInteractionPrompt()
@@ -159,10 +167,10 @@ namespace ProjectRac.Interaction
         {
             if (navMeshObstacle == null) return;
 
-            // Carve the doorway only when closed so NavMesh agents route around closed doors
-            // and walk cleanly through the opening once opened.
-            navMeshObstacle.carving = !IsOpen;
-            navMeshObstacle.enabled = !IsOpen;
+            // Keep NavMesh continuous through interior doorways that enemies are allowed to open.
+            bool shouldBlock = !IsOpen && !allowEnemyOpen;
+            navMeshObstacle.carving = shouldBlock;
+            navMeshObstacle.enabled = shouldBlock;
         }
 
         private void PlayClip(AudioClip clip)

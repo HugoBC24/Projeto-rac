@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 5956128463006437606}
   - component: {fileID: 229669931171000043}
   - component: {fileID: 8568823002118798725}
+  - component: {fileID: 3845346033007962651}
   m_Layer: 0
   m_Name: Boneca_MeleeEnemy
   m_TagString: Untagged
@@ -137,6 +138,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectRac.Enemy.EnemyMeleeAnimator
   animator: {fileID: 8584651528726528626}
   walkVelocityThreshold: 0.15
+--- !u!114 &3845346033007962651
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2641096601471214571}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c8e653e7794ad845ba4f8072a725f1d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectRac.Enemy.EnemyDoorOpener
+  checkInterval: 0.15
+  detectRadius: 1.25
+  forwardOffset: 0.85
+  chestHeight: 1
 --- !u!1001 &2758554539585109987
 PrefabInstance:
   m_ObjectHideFlags: 0

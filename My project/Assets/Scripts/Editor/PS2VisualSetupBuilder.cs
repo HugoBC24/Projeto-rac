@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -193,9 +193,7 @@ namespace ProjectRac.Editor
             // Balanced ambient and warm interior lights so hallways stay legible without a flashlight.
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.15f, 0.16f, 0.19f, 1f);
-            RenderSettings.fog = true;
-            RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = new Color(0.030f, 0.038f, 0.055f, 1f);
+            RenderSettings.fog = false;
             RenderSettings.fogDensity = 0.028f;
             ConfigureNightMoonSkybox();
 

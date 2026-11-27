@@ -130,6 +130,17 @@ namespace ProjectRac.Enemy
             TransitionToState(RangedAIState.Chase);
         }
 
+        public void ConfigureAsRoamingRespawn()
+        {
+            _initialized = true;
+            _encounterHeld = false;
+            startInIdle = false;
+            relentlessChase = false;
+            _health?.SetInvulnerable(false);
+            ResolveReferences();
+            TransitionToState(RangedAIState.Patrol);
+        }
+
         private void Update()
         {
             if (_health != null && _health.IsDead) return;
@@ -166,7 +177,7 @@ namespace ProjectRac.Enemy
             if (_stateTimer >= patrolWaitTime)
             {
                 _stateTimer = 0f;
-                if (EnemyPerception.TrySamplePatrolPoint(_spawnOrigin, patrolRadius, out Vector3 pt)) _agent.SetDestination(pt);
+                SetRandomPatrolDestination();
             }
         }
 
@@ -278,7 +289,7 @@ namespace ProjectRac.Enemy
             else if (currentState == RangedAIState.Patrol)
             {
                 _agent.speed = patrolSpeed; _agent.stoppingDistance = 0.5f; _agent.isStopped = false;
-                if (EnemyPerception.TrySamplePatrolPoint(_spawnOrigin, patrolRadius, out Vector3 pt)) _agent.SetDestination(pt);
+                SetRandomPatrolDestination();
             }
             else if (currentState == RangedAIState.Chase)
             {
@@ -289,6 +300,21 @@ namespace ProjectRac.Enemy
             {
                 _agent.speed = retreatSpeed; _agent.stoppingDistance = 0.4f; _agent.isStopped = false;
                 if (EnemyPerception.TrySampleRetreatPoint(transform, targetPlayer, 6f, out Vector3 rp)) _agent.SetDestination(rp);
+            }
+        }
+
+        private void SetRandomPatrolDestination()
+        {
+            if (MansionPatrolNetwork.Instance != null
+                && MansionPatrolNetwork.Instance.TryGetRandomWaypoint(transform.position, out Vector3 mansionPoint))
+            {
+                _agent.SetDestination(mansionPoint);
+                return;
+            }
+
+            if (EnemyPerception.TrySamplePatrolPoint(_spawnOrigin, patrolRadius, out Vector3 pt))
+            {
+                _agent.SetDestination(pt);
             }
         }
 

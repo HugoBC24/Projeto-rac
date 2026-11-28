@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using ProjectRac.Puzzle;
 
 namespace ProjectRac.UI
 {
@@ -23,11 +24,32 @@ namespace ProjectRac.UI
         public Vector2 CrosshairSize => crosshairSize;
 
         private bool _isTargetingInteractable;
+        private string _currentPrompt = "";
+        private string _tempMessage = "";
+        private float _tempMessageUntil;
+        private PlayerPuzzleComponentHolder _puzzleHolder;
 
         private void Awake()
         {
             ResolveReferences();
             ApplyVisualSettings();
+        }
+
+        private void Update()
+        {
+            if (!string.IsNullOrEmpty(_tempMessage) && Time.time >= _tempMessageUntil)
+            {
+                _tempMessage = "";
+            }
+
+            RefreshPromptDisplay();
+        }
+
+        public void ShowTemporaryMessage(string message, float duration = 3.5f)
+        {
+            _tempMessage = message ?? "";
+            _tempMessageUntil = Time.time + Mathf.Max(0.5f, duration);
+            RefreshPromptDisplay();
         }
 
         private void OnValidate()
@@ -58,17 +80,41 @@ namespace ProjectRac.UI
         public void SetTargetingInteractable(bool isInteractable, string prompt = "")
         {
             _isTargetingInteractable = isInteractable;
+            _currentPrompt = prompt ?? "";
 
             if (crosshairImage != null)
             {
                 crosshairImage.color = _isTargetingInteractable ? interactableColor : normalColor;
             }
 
-            if (promptText != null)
+            RefreshPromptDisplay();
+        }
+
+        private void RefreshPromptDisplay()
+        {
+            if (promptText == null) return;
+
+            if (_puzzleHolder == null)
             {
-                promptText.text = prompt ?? "";
-                promptText.gameObject.SetActive(!string.IsNullOrEmpty(prompt));
+                _puzzleHolder = FindAnyObjectByType<PlayerPuzzleComponentHolder>();
             }
+
+            string display = _currentPrompt;
+
+            if (_puzzleHolder != null && _puzzleHolder.HasComponent)
+            {
+                string compName = ShapeRules.GetComponentName(_puzzleHolder.HeldComponent).ToUpper();
+                string heldLine = $"[ EM MAOS: {compName} ]";
+                display = string.IsNullOrEmpty(display) ? heldLine : $"{display}\n{heldLine}";
+            }
+
+            if (!string.IsNullOrEmpty(_tempMessage))
+            {
+                display = string.IsNullOrEmpty(display) ? _tempMessage : $"{display}\n{_tempMessage}";
+            }
+
+            promptText.text = display;
+            promptText.gameObject.SetActive(!string.IsNullOrEmpty(display));
         }
 
         private void ResolveReferences()

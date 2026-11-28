@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using ProjectRac.Interaction;
+using ProjectRac.Inventory;
+using ProjectRac.Puzzle;
 using ProjectRac.UI;
 
 namespace ProjectRac.Player
@@ -35,6 +37,16 @@ namespace ProjectRac.Player
             if (crosshairHUD == null)
             {
                 crosshairHUD = FindAnyObjectByType<CrosshairHUD>();
+            }
+
+            if (GetComponent<PlayerPuzzleComponentHolder>() == null)
+            {
+                gameObject.AddComponent<PlayerPuzzleComponentHolder>();
+            }
+
+            if (GetComponent<PlayerKeyItemInventory>() == null)
+            {
+                gameObject.AddComponent<PlayerKeyItemInventory>();
             }
         }
 
